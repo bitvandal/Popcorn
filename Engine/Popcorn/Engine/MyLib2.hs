@@ -1,6 +1,8 @@
-module Popcorn.Engine.MyLib2 ( someFunc ) where
+-- | Other module documentation
+module Popcorn.Engine.MyLib2 ( someFunc2 ) where
 
-import qualified Popcorn.Common.MyLib
+import qualified Popcorn.Common.MyLib as Common
 
-someFunc :: IO ()
-someFunc = Popcorn.Common.MyLib.someFunc
+-- | Uses "Popcorn.Common.MyLib" module
+someFunc2 :: IO ()
+someFunc2 = Common.someFunc

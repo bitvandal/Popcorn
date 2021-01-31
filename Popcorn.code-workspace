@@ -7,6 +7,8 @@
 	"settings": {
 		"files.exclude": {
 			"dist-newstyle/": true
-		}
+		},
+		"files.trimTrailingWhitespace": true,
+		"editor.rulers": [ 90 ]
 	}
 }

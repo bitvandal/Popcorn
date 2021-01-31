@@ -1,6 +1,6 @@
 module Main where
 
-import qualified Popcorn.Engine.MyLib2
+import qualified Popcorn.Engine.MyLib2 as Engine
 
 main :: IO ()
-main = Popcorn.Engine.MyLib2.someFunc
+main = Engine.someFunc2
