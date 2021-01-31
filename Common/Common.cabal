@@ -1,0 +1,35 @@
+cabal-version:       >=1.10
+name:                Common
+version:             0.1.0.0
+synopsis:            Experiments in Haskell and 3D
+description:         Experiments in Haskell and 3D
+homepage:            https://github.com/bitvandal/Popcorn
+bug-reports:         https://github.com/bitvandal/Popcorn/issues
+license:             MIT
+license-file:        LICENSE
+author:              José Cegrí
+maintainer:          bitvandal@gmail.com
+category:            Graphics
+build-type:          Simple
+
+tested-with:
+  ghc ==8.10.3
+
+extra-doc-files:
+  CHANGELOG.md
+  README.md
+
+source-repository head
+  type:     git
+  location: https://github.com/bitvandal/Popcorn
+  subdir:   Common
+
+library
+  exposed-modules:
+    Popcorn.Common.MyLib
+
+  build-depends:
+    base >=4.14 && <4.15
+
+  default-language:
+    Haskell2010

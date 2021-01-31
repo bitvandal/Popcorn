@@ -1,0 +1,4 @@
+packages:
+    ./Common/*.cabal
+    ./Engine/*.cabal
+    ./Sandbox/*.cabal
