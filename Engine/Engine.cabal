@@ -26,11 +26,54 @@ source-repository head
 
 library
   exposed-modules:
-    Popcorn.Engine.MyLib2
+    Popcorn.Engine.Application
+    Popcorn.Engine.Engine
+    Popcorn.Engine.Exception
+    Popcorn.Engine.Managed.Extra
+    Popcorn.Engine.Platform.GLFW.Init
+    Popcorn.Engine.Platform.GLFW.Vulkan
+    Popcorn.Engine.Renderer.Vulkan.Init
+    Popcorn.Engine.Renderer.Vulkan.Instance
+    Popcorn.Engine.Renderer.Vulkan.LogicalDevice
+    Popcorn.Engine.Renderer.Vulkan.PhysicalDevice
+    Popcorn.Engine.Renderer.Vulkan.Utils
+
+  other-modules:
+    Paths_Engine
 
   build-depends:
       base >=4.14 && <4.15
+    , bytestring
     , Common
+    , GLFW-b >=3.3 && <4.0
+    , managed
+    , optparse-applicative
+    , text
+    , time
+    , vector
+    , vulkan >=3.9 && <4.0
 
   default-language:
     Haskell2010
+
+  ghc-options:
+    -Wall
+    -Wcompat
+    -Widentities
+    -Wincomplete-uni-patterns
+    -Wincomplete-record-updates
+    -Wredundant-constraints
+    -Wmissing-export-lists
+    -Wpartial-fields
+    -Wmissing-deriving-strategies
+    -Wunused-packages
+    -fhide-source-paths
+    -freverse-errors
+
+  default-extensions:
+    DerivingStrategies
+    LambdaCase
+    OverloadedLists
+    OverloadedStrings
+    ScopedTypeVariables
+    RecordWildCards

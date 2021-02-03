@@ -26,10 +26,33 @@ source-repository head
 
 library
   exposed-modules:
-    Popcorn.Common.MyLib
+    Popcorn.Common.Log.Logger
 
   build-depends:
-    base >=4.14 && <4.15
+      base >=4.14 && <4.15
+    , text
 
   default-language:
     Haskell2010
+
+  ghc-options:
+    -Wall
+    -Wcompat
+    -Widentities
+    -Wincomplete-uni-patterns
+    -Wincomplete-record-updates
+    -Wredundant-constraints
+    -Wmissing-export-lists
+    -Wpartial-fields
+    -Wmissing-deriving-strategies
+    -Wunused-packages
+    -fhide-source-paths
+    -freverse-errors
+
+  default-extensions:
+    DerivingStrategies
+    LambdaCase
+    OverloadedLists
+    OverloadedStrings
+    ScopedTypeVariables
+    RecordWildCards

@@ -5,10 +5,20 @@
 		}
 	],
 	"settings": {
+		// visibility
 		"files.exclude": {
 			"dist-newstyle/": true
 		},
+		// editing
 		"files.trimTrailingWhitespace": true,
-		"editor.rulers": [ 90 ]
+		"editor.rulers": [ 90 ],
+		"editor.detectIndentation": false,
+        "editor.tabSize": 4,
+		// haskell lsp
+		"haskell.hlintOn": true,
+		"haskell.formattingProvider": "none",
+		// git lens
+		"gitlens.codeLens.enabled": false,
+		"gitlens.codeLens.authors.enabled": false
 	}
 }
