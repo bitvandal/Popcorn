@@ -26,12 +26,16 @@ newtype CliArgs = CliArgs
     } deriving stock (Eq, Show)
 
 -- | Parse command line interface options
-parseArgs :: IO CliArgs
-parseArgs = Opts.execParser cliArgsParserInfo
+parseArgs
+    :: T.Text     -- ^ The application name
+    -> IO CliArgs -- ^ Returns the parsed command line arguments
+parseArgs = Opts.execParser . cliArgsParserInfo
 
-cliArgsParserInfo :: Opts.ParserInfo CliArgs
-cliArgsParserInfo = Opts.info (cliArgsParser Opts.<**> Opts.helper)
-  (Opts.fullDesc <> Opts.header "The Popcorn Engine Sandbox!")
+cliArgsParserInfo :: T.Text -> Opts.ParserInfo CliArgs
+cliArgsParserInfo appName = Opts.info (cliArgsParser Opts.<**> Opts.helper)
+    (Opts.fullDesc <> Opts.header header)
+  where
+    header = "The Popcorn Engine version " <> T.unpack appName <> "!"
 
 cliArgsParser :: Opts.Parser CliArgs
 cliArgsParser = CliArgs

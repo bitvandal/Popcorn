@@ -7,7 +7,6 @@ module Popcorn.Engine.Engine
     , withEngine
 
       -- * Engine Information
-    , showEngineBuildNumber
     , showEngineVersion
     ) where
 
@@ -27,19 +26,23 @@ data Engine = Engine
 -- | Returns The Engine
 withEngine :: Managed Engine
 withEngine = do
-    buildNumber <- liftIO showEngineBuildNumber
-    liftIO (engineLog $ mconcat[
-           "Engine version: "
-        <> showEngineVersion
-        <> " (build number "
-        <> buildNumber
-        <> ")"
+    engineVersion <- liftIO showEngineVersion
+    liftIO (engineLog $ mconcat [
+        "Engine version: "
+        <> engineVersion
         ])
     return Engine
 
 -- | Returns a formatted Engine version number
-showEngineVersion :: T.Text
-showEngineVersion = T.pack (showVersion version)
+showEngineVersion :: IO T.Text
+showEngineVersion = do
+    buildNumber <- showEngineBuildNumber
+    return $ mconcat [
+        T.pack (showVersion version)
+        <> " (build number "
+        <> buildNumber
+        <> ")"
+        ]
 
 -- | Returns a formatted Engine build number (number of days since project was started)
 showEngineBuildNumber :: IO T.Text

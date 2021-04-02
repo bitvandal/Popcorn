@@ -9,6 +9,7 @@ import Paths_Sandbox (version)
 
 import Popcorn.Common.Log.Logger (clientLog)
 import Popcorn.Engine.Application (Application(..), CliArgs(..), parseArgs)
+import Popcorn.Engine.Engine (showEngineVersion)
 
 import qualified Popcorn.Engine.Engine as Engine
 import qualified Popcorn.Engine.Exception as Engine
@@ -21,9 +22,10 @@ main = start `catch` (\(e :: Engine.EngineException) -> notifyException e)
 
 start :: IO ()
 start = do
-    clientLog "Popcorn Sandbox is starting..."
+    engineVersion <- showEngineVersion
+    args <- parseArgs engineVersion
 
-    args <- parseArgs
+    clientLog "Popcorn Sandbox is starting..."
 
     let app = Application "Sandbox" version (cliArgsDebugMode args)
 
