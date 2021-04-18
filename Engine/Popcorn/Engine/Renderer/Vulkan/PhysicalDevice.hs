@@ -7,7 +7,10 @@ module Popcorn.Engine.Renderer.Vulkan.PhysicalDevice
     , graphicsDeviceFriendlyDesc
     ) where
 
+import Control.Exception (throwIO)
 import Data.Word (Word32)
+
+import Popcorn.Engine.Exception (EngineException(EngineException))
 
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
@@ -24,16 +27,20 @@ data GraphicsDevice = GraphicsDevice
     , gdMemoryProperties :: Vk.PhysicalDeviceMemoryProperties
     }
 
--- TODO at least ensure that what is returned is a graphical device
--- TODO what if no devices are returned?
--- TODO exception handling on all calls
-
--- | Enumerates the Vulkan Physical Devices and returns the first graphics device found
+-- | Enumerates Vulkan Physical Devices and returns the first Vulkan capable device found
 selectGraphicsDevice :: Vk.Instance -> IO GraphicsDevice
 selectGraphicsDevice vkInstance =
     Vk.enumeratePhysicalDevices vkInstance >>= \case
-        (Vk.SUCCESS, physicalDevices) -> getPhysicalDeviceInfo (V.head physicalDevices)
-        (_, _)                        -> undefined -- TODO return (Left (T.pack (show result)))
+        (Vk.SUCCESS, physicalDevices)    -> getFirstPhysicalDeviceInfo physicalDevices
+        (Vk.INCOMPLETE, physicalDevices) -> getFirstPhysicalDeviceInfo physicalDevices
+        (_, _) ->
+            throwIO (EngineException "Could not automatically select a Graphics device!")
+
+getFirstPhysicalDeviceInfo :: V.Vector Vk.PhysicalDevice -> IO GraphicsDevice
+getFirstPhysicalDeviceInfo physicalDevices =
+    if V.null physicalDevices
+        then throwIO (EngineException "There are no compatible Vulkan Graphics devices!")
+        else getPhysicalDeviceInfo (V.head physicalDevices)
 
 getPhysicalDeviceInfo :: Vk.PhysicalDevice -> IO GraphicsDevice
 getPhysicalDeviceInfo vkPhysicalDevice = GraphicsDevice vkPhysicalDevice

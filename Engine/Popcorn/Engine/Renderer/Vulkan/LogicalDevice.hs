@@ -16,9 +16,6 @@ import qualified Vulkan.Core10 as Vk
 import qualified Vulkan.CStruct.Extends as Vk
 import qualified Vulkan.Zero as Vk
 
--- TODO exception handling on all calls
--- TODO queue management
-
 -- | Bracket for creating/releasing a Vulkan logical device
 withLogicalDevice
     :: MonadManaged m
