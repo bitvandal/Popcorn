@@ -27,9 +27,9 @@ data Engine = Engine
 withEngine :: Managed Engine
 withEngine = do
     engineVersion <- liftIO showEngineVersion
-    liftIO (engineLog $ mconcat [
-        "Engine version: "
-        <> engineVersion
+    liftIO (engineLog $ mconcat
+        [ "Engine version: "
+        , engineVersion
         ])
     return Engine
 
@@ -37,11 +37,11 @@ withEngine = do
 showEngineVersion :: IO T.Text
 showEngineVersion = do
     buildNumber <- showEngineBuildNumber
-    return $ mconcat [
-        T.pack (showVersion version)
-        <> " (build number "
-        <> buildNumber
-        <> ")"
+    return $ mconcat
+        [ T.pack (showVersion version)
+        , " (build number "
+        , buildNumber
+        , ")"
         ]
 
 -- | Returns a formatted Engine build number (number of days since project was started)

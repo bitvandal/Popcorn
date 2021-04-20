@@ -26,7 +26,8 @@ info component msg = putStrLn $ mconcat
     [ "["
     , show component
     , "] "
-    , T.unpack msg ]
+    , T.unpack msg
+    ]
 
 -- | Helper function to be used by the Clients to log a message
 clientLog :: T.Text -> IO ()

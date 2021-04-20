@@ -14,4 +14,5 @@ formatList desc xs = mconcat
     [ desc
     , ": ["
     , T.decodeUtf8 (BS.intercalate ", " (V.toList xs))
-    , "]"]
+    , "]"
+    ]
