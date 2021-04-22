@@ -13,9 +13,10 @@ import Popcorn.Engine.Engine (showEngineVersion)
 
 import qualified Popcorn.Engine.Engine as Engine
 import qualified Popcorn.Engine.Exception as Engine
-import qualified Popcorn.Engine.Platform.GLFW.Init as Platform
+import qualified Popcorn.Engine.Platform.GLFW as Platform
 import qualified Popcorn.Engine.Platform.GLFW.Vulkan as Platform
-import qualified Popcorn.Engine.Renderer.Vulkan.Init as R
+import qualified Popcorn.Engine.Platform.GLFW.Window as Platform
+import qualified Popcorn.Engine.Renderer.Vulkan as R
 
 main :: IO ()
 main = start `catch` (\(e :: Engine.EngineException) -> notifyException e)
@@ -27,13 +28,25 @@ start = do
 
     clientLog "Popcorn Sandbox is starting..."
 
-    let app = Application "Sandbox" version (cliArgsDebugMode args)
+    let app = Application
+                "Sandbox"
+                version
+                (cliArgsDebugMode args)
+                (cliArgsAppMainWindowWidth args)
+                (cliArgsAppMainWindowHeight args)
 
     runManaged $ do
         Platform.withGlfwForVulkanPlatform
 
+        -- only needed for rendering to a Window
         vkInstanceExtensions <- liftIO Platform.vulkanRequiredInstanceExtensions
-        _ <- R.withVulkanRenderer app vkInstanceExtensions
+
+        renderer <- R.withVulkanRenderer app vkInstanceExtensions
+
+        window <- Platform.withWindow app
+
+        -- only needed for rendering to a Window
+        vkWindow <- Platform.setupVulkanSurface window renderer
 
         _ <- Engine.withEngine
 

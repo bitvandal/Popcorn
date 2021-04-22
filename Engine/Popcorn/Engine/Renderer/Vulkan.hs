@@ -1,10 +1,13 @@
 -- | The Vulkan Renderer
-module Popcorn.Engine.Renderer.Vulkan.Init
+module Popcorn.Engine.Renderer.Vulkan
     ( -- * Types
       Renderer
 
       -- * Initialization
     , withVulkanRenderer
+
+      -- * Accessors
+    , getVulkanInstance
     ) where
 
 import Control.Monad.IO.Class (liftIO)
@@ -48,3 +51,7 @@ withVulkanRenderer app instanceExtensions = do
         >>  engineLog (graphicsDeviceFriendlyDesc rGraphicsDevice))
 
     pure Renderer{..}
+
+-- | Returns Renderer's Vulkan instance
+getVulkanInstance :: Renderer -> Vk.Instance
+getVulkanInstance = rInstance

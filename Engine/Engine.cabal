@@ -30,9 +30,11 @@ library
     Popcorn.Engine.Engine
     Popcorn.Engine.Exception
     Popcorn.Engine.Managed.Extra
-    Popcorn.Engine.Platform.GLFW.Init
+    Popcorn.Engine.Platform.GLFW
+    Popcorn.Engine.Platform.GLFW.Utils
     Popcorn.Engine.Platform.GLFW.Vulkan
-    Popcorn.Engine.Renderer.Vulkan.Init
+    Popcorn.Engine.Platform.GLFW.Window
+    Popcorn.Engine.Renderer.Vulkan
     Popcorn.Engine.Renderer.Vulkan.Instance
     Popcorn.Engine.Renderer.Vulkan.LogicalDevice
     Popcorn.Engine.Renderer.Vulkan.PhysicalDevice

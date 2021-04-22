@@ -1,5 +1,5 @@
 -- | GLFW platform
-module Popcorn.Engine.Platform.GLFW.Init
+module Popcorn.Engine.Platform.GLFW
     ( -- * Types
       -- Platform
 
@@ -14,6 +14,7 @@ import Control.Monad.Managed (Managed, managed_)
 import Data.Maybe (fromMaybe)
 
 import Popcorn.Common.Log.Logger (platformLog)
+import Popcorn.Engine.Platform.GLFW.Utils (glfwLastErrorFriendlyDesc)
 import Popcorn.Engine.Platform.GLFW.Vulkan (supportsVulkan)
 import Popcorn.Engine.Exception (EngineException(EngineException))
 
@@ -39,12 +40,16 @@ initForVulkan = do
     initCommon
 
     platformSupportsVulkan <- supportsVulkan
-    unless platformSupportsVulkan (throwIO (EngineException "[GLFW] Vulkan not detected"))
+    unless platformSupportsVulkan
+        (throwIO (EngineException "[Platform] Vulkan not detected"))
 
 initCommon :: IO ()
 initCommon = do
     result <- GLFW.init
-    unless result (throwIO (EngineException "Failed to initialize GLFW platform"))
+    unless result $ do
+        err <- glfwLastErrorFriendlyDesc
+        throwIO (EngineException
+            ("[Platform] Failed to initialize GLFW platform. " <> err))
 
     glfwVersion <- GLFW.getVersionString
 
