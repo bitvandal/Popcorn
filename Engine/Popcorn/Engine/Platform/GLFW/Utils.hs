@@ -1,4 +1,4 @@
--- | Random collection of GLFW renderer misc utility functions
+-- | Random collection of GLFW platform misc utility functions
 module Popcorn.Engine.Platform.GLFW.Utils
     ( glfwLastErrorFriendlyDesc
     ) where
