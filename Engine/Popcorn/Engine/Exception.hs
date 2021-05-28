@@ -5,8 +5,8 @@ module Popcorn.Engine.Exception
 
       -- * Exceptions Conversion
     , fromVulkanException
-    )
-    where
+    , showVulkanException
+    ) where
 
 import Control.Exception (Exception, displayException)
 
@@ -22,4 +22,8 @@ instance Exception EngineException
 
 -- | Converts a Vulkan Renderer exception to a Engine Exception
 fromVulkanException :: Vk.VulkanException -> EngineException
-fromVulkanException e = EngineException ("[Vulkan] VK_" <> T.pack (displayException e))
+fromVulkanException e = EngineException (showVulkanException e)
+
+-- | Show the Vulkan error code associated to a VulkanException
+showVulkanException :: Vk.VulkanException -> T.Text
+showVulkanException e = "[Vulkan] VK_" <> T.pack (displayException e)

@@ -35,23 +35,32 @@ library
     Popcorn.Engine.Platform.GLFW.Vulkan
     Popcorn.Engine.Platform.GLFW.Window
     Popcorn.Engine.Renderer.Vulkan
+    Popcorn.Engine.Renderer.Vulkan.Image
     Popcorn.Engine.Renderer.Vulkan.Instance
     Popcorn.Engine.Renderer.Vulkan.LogicalDevice
     Popcorn.Engine.Renderer.Vulkan.PhysicalDevice
+    Popcorn.Engine.Renderer.Vulkan.Platform.GLFW
+    Popcorn.Engine.Renderer.Vulkan.Surface
+    Popcorn.Engine.Renderer.Vulkan.Swapchain
     Popcorn.Engine.Renderer.Vulkan.Utils
+    Popcorn.Engine.Settings
 
   other-modules:
     Paths_Engine
+    Popcorn.Engine.Renderer.Vulkan.Internal.Surface
+    Popcorn.Engine.Renderer.Vulkan.Internal.Vulkan
 
   build-depends:
       base >=4.14 && <4.15
     , bytestring
     , Common
+    , containers
     , GLFW-b >=3.3 && <4.0
     , managed
     , optparse-applicative
     , text
     , time
+    , transformers
     , vector
     , vulkan >=3.9 && <4.0
 

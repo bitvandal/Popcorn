@@ -21,14 +21,11 @@ import Popcorn.Engine.Exception (EngineException(EngineException))
 import qualified Data.Text as T
 import qualified Graphics.UI.GLFW as GLFW
 
--- | The GLFW Platform
---data Platform = Platform
-
--- | Returns the GLFW platform with OpenGL support
+-- | Initializes the GLFW platform with OpenGL support
 withGlfwPlatform :: Managed ()
 withGlfwPlatform = managed_ (bracket_ initForOpenGL terminate)
 
--- | Returns the GLFW platform ensuring Vulkan support, or throws an EngineException
+-- | Initializes the GLFW platform ensuring Vulkan support, or throws an EngineException
 withGlfwForVulkanPlatform :: Managed ()
 withGlfwForVulkanPlatform = managed_ (bracket_ initForVulkan terminate)
 

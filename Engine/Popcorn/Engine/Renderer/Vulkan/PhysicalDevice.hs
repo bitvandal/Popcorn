@@ -2,61 +2,127 @@
 
 -- | Vulkan Physical Devices
 module Popcorn.Engine.Renderer.Vulkan.PhysicalDevice
-    ( GraphicsDevice(..)
+    ( -- * Data types
+      VulkanDevice(..)
+    , QueueFamily(..)
+
+      -- * Device selection
     , selectGraphicsDevice
-    , graphicsDeviceFriendlyDesc
+    , selectOffscreenGraphicsDevice
+
+      -- * Device Queue functions
+    , findGraphicsQueueFamily
+
+      -- * Utilities
+    , vulkanDeviceFriendlyDesc
     ) where
 
-import Control.Exception (throwIO)
+import Control.Monad (when)
+import Data.Bits (Bits((.&.)), zeroBits)
 import Data.Word (Word32)
 
-import Popcorn.Engine.Exception (EngineException(EngineException))
+import Popcorn.Common.Control.Monad.Extra (findM)
+import Popcorn.Common.Log.Logger (engineLog)
+import Popcorn.Common.Utils (maybeToEither)
 
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
 import qualified Data.Vector as V
 import qualified Vulkan.Core10 as Vk
+import qualified Vulkan.Extensions.VK_KHR_swapchain as Vk
 import qualified Vulkan.Version as Vk
 
--- | The Vulkan Physical Device
-data GraphicsDevice = GraphicsDevice
-    { gdPhysicalDevice :: Vk.PhysicalDevice
-    , gdProperties :: Vk.PhysicalDeviceProperties
-    , gdQueueFamilyProperties :: V.Vector Vk.QueueFamilyProperties
-    , gdFeatures :: Vk.PhysicalDeviceFeatures
-    , gdMemoryProperties :: Vk.PhysicalDeviceMemoryProperties
+-- | The Vulkan Physical Device (a Vulkan Device may or may not have graphics support)
+data VulkanDevice = VulkanDevice
+    { vdPhysicalDevice :: Vk.PhysicalDevice
+    , vdProperties :: Vk.PhysicalDeviceProperties
+    , vdQueueFamilyProperties :: V.Vector Vk.QueueFamilyProperties
+    , vdFeatures :: Vk.PhysicalDeviceFeatures
+    , vdMemoryProperties :: Vk.PhysicalDeviceMemoryProperties
     }
 
--- | Enumerates Vulkan Physical Devices and returns the first Vulkan capable device found
-selectGraphicsDevice :: Vk.Instance -> IO GraphicsDevice
-selectGraphicsDevice vkInstance =
+-- | Vulkan Queue Family
+data QueueFamily = QueueFamily
+    { queueFamilyHandles :: V.Vector Vk.Queue -- ^ Queues handles
+    , queueFamilyIndex :: Word32              -- ^ Index of the queue family
+    }
+
+-- | Enumerates Vulkan Physical Devices and returns the first graphics device found
+selectGraphicsDevice :: Vk.Instance -> IO (Either T.Text VulkanDevice)
+selectGraphicsDevice =
+    findDeviceBy (\device -> do
+        let isGraphics = isGraphicsDevice device
+        hasSwapchain <- hasSwapchainSupport device
+        pure (isGraphics && hasSwapchain))
+
+-- | Enumerates Vulkan Physical Devices and returns the first graphics device found 
+-- suitable for off-screen rendering
+selectOffscreenGraphicsDevice :: Vk.Instance -> IO (Either T.Text VulkanDevice)
+selectOffscreenGraphicsDevice = findDeviceBy (pure . isGraphicsDevice)
+
+-- | Returns the first Graphics Queue Family of a given VulkanDevice
+findGraphicsQueueFamily :: VulkanDevice -> Either T.Text QueueFamily
+findGraphicsQueueFamily VulkanDevice{..} = maybe
+    (Left "[Renderer] Could not retrieve a graphics queue family")
+    (\i -> Right $ QueueFamily
+        { queueFamilyIndex = i
+        , queueFamilyHandles = []
+        }) 
+    found
+  where        
+    properties = V.zip [0..] vdQueueFamilyProperties
+    found = fst <$> V.find (\(_, p) -> hasGraphicsQueue p) properties
+
+-- Finds the first physical device matching a filter
+findDeviceBy
+    :: (VulkanDevice -> IO Bool)
+    -> Vk.Instance
+    -> IO (Either T.Text VulkanDevice)
+findDeviceBy condition vkInstance = do
     Vk.enumeratePhysicalDevices vkInstance >>= \case
-        (Vk.SUCCESS, physicalDevices)    -> getFirstPhysicalDeviceInfo physicalDevices
-        (Vk.INCOMPLETE, physicalDevices) -> getFirstPhysicalDeviceInfo physicalDevices
-        (_, _) ->
-            throwIO (EngineException "Could not automatically select a Graphics device!")
+        (Vk.SUCCESS, physicalDevices)    -> findDevice physicalDevices
+        (Vk.INCOMPLETE, physicalDevices) -> findDevice physicalDevices
+        _ -> pure (Left "[Renderer] Could not automatically select a Graphics device!")
+  where
+    findDevice physicalDevices = do
+        devicesInfo <- traverse getPhysicalDeviceInfo physicalDevices
+        maybeToEither "[Renderer] No suitable Graphics device was found in the system!"
+            <$> findM condition devicesInfo
 
-getFirstPhysicalDeviceInfo :: V.Vector Vk.PhysicalDevice -> IO GraphicsDevice
-getFirstPhysicalDeviceInfo physicalDevices =
-    if V.null physicalDevices
-        then throwIO (EngineException "There are no compatible Vulkan Graphics devices!")
-        else getPhysicalDeviceInfo (V.head physicalDevices)
+-- True if the device has any queue family with queues supporting graphics operations
+isGraphicsDevice :: VulkanDevice -> Bool
+isGraphicsDevice VulkanDevice{..} = any hasGraphicsQueue vdQueueFamilyProperties
 
-getPhysicalDeviceInfo :: Vk.PhysicalDevice -> IO GraphicsDevice
-getPhysicalDeviceInfo vkPhysicalDevice = GraphicsDevice vkPhysicalDevice
+-- True if the device supports the VK_KHR_swapchain extension
+hasSwapchainSupport :: VulkanDevice -> IO Bool
+hasSwapchainSupport VulkanDevice{..} = do
+    (vkResult, extsProperties) <-
+        Vk.enumerateDeviceExtensionProperties vdPhysicalDevice Nothing
+
+    when (vkResult /= Vk.SUCCESS) $ engineLog
+        ("Warning: while checking for swapchain support=" <> T.pack (show vkResult))
+
+    pure (V.any ((Vk.KHR_SWAPCHAIN_EXTENSION_NAME ==) . Vk.extensionName) extsProperties)
+
+hasGraphicsQueue :: Vk.QueueFamilyProperties -> Bool
+hasGraphicsQueue queueFamilyProps = 
+    Vk.queueFlags queueFamilyProps .&. Vk.QUEUE_GRAPHICS_BIT /= zeroBits 
+
+getPhysicalDeviceInfo :: Vk.PhysicalDevice -> IO VulkanDevice
+getPhysicalDeviceInfo vkPhysicalDevice = VulkanDevice vkPhysicalDevice
     <$> Vk.getPhysicalDeviceProperties vkPhysicalDevice
     <*> Vk.getPhysicalDeviceQueueFamilyProperties vkPhysicalDevice
     <*> Vk.getPhysicalDeviceFeatures vkPhysicalDevice
     <*> Vk.getPhysicalDeviceMemoryProperties vkPhysicalDevice
 
 -- | Returns a graphics device textual description
-graphicsDeviceFriendlyDesc :: GraphicsDevice -> T.Text
-graphicsDeviceFriendlyDesc GraphicsDevice{..} = mconcat
-    [ deviceTypeDesc (Vk.deviceType gdProperties)
+vulkanDeviceFriendlyDesc :: VulkanDevice -> T.Text
+vulkanDeviceFriendlyDesc VulkanDevice{..} = mconcat
+    [ deviceTypeDesc (Vk.deviceType vdProperties)
     , " GPU: "
-    , T.decodeUtf8 (Vk.deviceName gdProperties)
+    , T.decodeUtf8 (Vk.deviceName vdProperties)
     , " (Vulkan driver version "
-    , apiVersionDesc (Vk.apiVersion (gdProperties :: Vk.PhysicalDeviceProperties))
+    , apiVersionDesc (Vk.apiVersion (vdProperties :: Vk.PhysicalDeviceProperties))
     , ") "
     ]
 

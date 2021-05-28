@@ -1,24 +1,32 @@
 -- | Random collection of GLFW platform misc utility functions
 module Popcorn.Engine.Platform.GLFW.Utils
-    ( glfwLastErrorFriendlyDesc
+    ( glfwLastErrorFriendlyDescIfAny
+    , glfwLastErrorFriendlyDesc
     ) where
 
 import qualified Data.Text as T
 import qualified Graphics.UI.GLFW as GLFW
 
+-- | Retrieves, unsets, and formats nicely the last GLFW error if it is set
+glfwLastErrorFriendlyDescIfAny :: IO (Either T.Text ())
+glfwLastErrorFriendlyDescIfAny =
+    maybe (pure ()) (Left . formatError) <$> GLFW.getError
+
 -- | Retrieves, unsets, and formats nicely the last GLFW error
 glfwLastErrorFriendlyDesc :: IO T.Text
-glfwLastErrorFriendlyDesc = do
+glfwLastErrorFriendlyDesc =
     GLFW.getError >>= \case
-        Nothing -> return "GLFW_NO_ERROR"
-        Just (errorCode, errorDesc) ->
-            return (mconcat
+        Nothing -> pure "GLFW_NO_ERROR"
+        Just err -> pure (formatError err)
+
+formatError :: (GLFW.Error, String) -> T.Text
+formatError (errorCode, errorDesc) = mconcat
                 [ "Platform error "
                 , translateGLFWError errorCode
-                , " \""
+                , " '"
                 , T.pack errorDesc
-                , "\""
-                ])
+                , "'"
+                ]
 
 translateGLFWError :: GLFW.Error -> T.Text
 translateGLFWError err = case err of

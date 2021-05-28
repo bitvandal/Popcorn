@@ -2,6 +2,7 @@
 module Popcorn.Engine.Platform.GLFW.Window
     ( -- * Types
       Window(..)
+
       -- * Initialization
     , withWindow
     ) where
@@ -15,12 +16,10 @@ import Popcorn.Engine.Platform.GLFW.Utils (glfwLastErrorFriendlyDesc)
 
 import qualified Data.Text as T
 import qualified Graphics.UI.GLFW as GLFW
-import qualified Vulkan.Extensions.VK_KHR_surface as Vk
 
 -- | The GLFW Platform window
-data Window = Window
+newtype Window = Window
     { windowHandle :: GLFW.Window
-    , windowVulkanSurface :: Maybe Vk.SurfaceKHR
     }
 
 -- | Returns the GLFW Platform Window
@@ -39,7 +38,7 @@ createWindow Application{..} = do
 
     GLFW.createWindow width height (T.unpack title) Nothing Nothing >>= \case
         Just handle ->
-            return (Window handle Nothing)
+            return (Window handle)
 
         Nothing -> do
             err <- glfwLastErrorFriendlyDesc
