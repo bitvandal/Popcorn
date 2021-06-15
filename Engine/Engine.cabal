@@ -34,7 +34,8 @@ library
     Popcorn.Engine.Platform.GLFW.Utils
     Popcorn.Engine.Platform.GLFW.Vulkan
     Popcorn.Engine.Platform.GLFW.Window
-    Popcorn.Engine.Renderer.Vulkan
+    Popcorn.Engine.Renderer.VulkanRenderer
+    Popcorn.Engine.Renderer.Vulkan.CommandBuffer
     Popcorn.Engine.Renderer.Vulkan.Image
     Popcorn.Engine.Renderer.Vulkan.Instance
     Popcorn.Engine.Renderer.Vulkan.LogicalDevice
@@ -42,6 +43,7 @@ library
     Popcorn.Engine.Renderer.Vulkan.Platform.GLFW
     Popcorn.Engine.Renderer.Vulkan.Surface
     Popcorn.Engine.Renderer.Vulkan.Swapchain
+    Popcorn.Engine.Renderer.Vulkan.Sychronization
     Popcorn.Engine.Renderer.Vulkan.Utils
     Popcorn.Engine.Settings
 
@@ -83,6 +85,7 @@ library
 
   default-extensions:
     DerivingStrategies
+    DuplicateRecordFields
     LambdaCase
     OverloadedLists
     OverloadedStrings

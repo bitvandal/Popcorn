@@ -4,7 +4,7 @@ module Popcorn.Engine.Renderer.Vulkan.Surface
       withVulkanSurface
 
       -- * Surface queries
-    , findPresentQueueFamily
+    , findPresentQueueFamilyIndex
     ) where
 
 import Control.Applicative (Applicative(liftA2))
@@ -15,7 +15,7 @@ import Popcorn.Common.Control.Monad.Extra (findM)
 import Popcorn.Engine.Managed.Extra (bracketManaged)
 import Popcorn.Engine.Platform.GLFW.Window (Window(..))
 import Popcorn.Engine.Renderer.Vulkan.Internal.Surface (Surface(..), querySurfaceInfo)
-import Popcorn.Engine.Renderer.Vulkan.PhysicalDevice (QueueFamily(..), VulkanDevice(..))
+import Popcorn.Engine.Renderer.Vulkan.PhysicalDevice (VulkanDevice(..))
 import Popcorn.Engine.Renderer.Vulkan.Platform.GLFW
     ( createVulkanSurface
     , supportsPresentationPlatform
@@ -57,23 +57,17 @@ destroySurface inst surface =
     Vk.destroySurfaceKHR inst (surfaceHandle surface) Nothing
 
 -- | Returns the first queue family with queues that support presentation
-findPresentQueueFamily
+findPresentQueueFamilyIndex
     :: Vk.Instance
     -> VulkanDevice
     -> Surface
-    -> IO (Either T.Text QueueFamily)
-findPresentQueueFamily inst VulkanDevice{..} surface = do
+    -> IO (Either T.Text Word32)
+findPresentQueueFamilyIndex inst VulkanDevice{..} surface = do
     let props = V.zip [0..] vdQueueFamilyProperties
 
     found <- fmap fst <$> findM (canPresent inst vdPhysicalDevice surface) props
 
-    pure $ maybe
-        (Left "[Renderer] Could not obtain a present queue family")
-        (\i -> Right $ QueueFamily
-            { queueFamilyIndex = i
-            , queueFamilyHandles = []
-            }) 
-        found
+    pure $ maybe (Left "[Renderer] Could not obtain a present queue family") Right found
 
 canPresent
     :: Vk.Instance

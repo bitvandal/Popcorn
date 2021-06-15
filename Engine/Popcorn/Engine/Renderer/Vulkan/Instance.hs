@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DuplicateRecordFields #-}
 
 -- | Vulkan instance
 module Popcorn.Engine.Renderer.Vulkan.Instance
@@ -85,7 +84,7 @@ mkInstanceCreateInfo Application{..} extensions layers = Vk.zero
     }
 
 makeVulkanVersion :: Version -> Word32
-makeVulkanVersion v = Vk.MAKE_VERSION versionA versionB versionC
+makeVulkanVersion v = Vk.MAKE_API_VERSION versionA versionB versionC
   where
     versionA = fromIntegral (head (versionBranch v))
     versionB = fromIntegral (versionBranch v !! 1)

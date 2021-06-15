@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DuplicateRecordFields #-}
 
 -- | Vulkan Images and Image views
 module Popcorn.Engine.Renderer.Vulkan.Image
@@ -8,6 +7,7 @@ module Popcorn.Engine.Renderer.Vulkan.Image
 
       -- * Resource creation/release
     , withImageView
+    , mkImageSubresourceRangeWholeImage
 
     -- * Queries
     , canCreateImage
@@ -57,20 +57,14 @@ mkImageViewCreateInfo Image{..} =
             , Vk.a = Vk.COMPONENT_SWIZZLE_IDENTITY
             }
 
-        imageSubresourceRange = Vk.zero
-            { Vk.aspectMask = Vk.IMAGE_ASPECT_COLOR_BIT
-            , Vk.baseMipLevel = 0
-            , Vk.levelCount = 1
-            , Vk.baseArrayLayer = 0
-            , Vk.layerCount = 1
-            }
+        range = mkImageSubresourceRangeWholeImage Vk.IMAGE_ASPECT_COLOR_BIT
     in
         Vk.zero
             { Vk.image = imageHandle
             , Vk.viewType = Vk.IMAGE_VIEW_TYPE_2D
             , Vk.format = imageFormat
             , Vk.components = componentMapping
-            , Vk.subresourceRange = imageSubresourceRange
+            , Vk.subresourceRange = range
             }
 
 -- | Checks that an image with the indicated properties can be created.
@@ -109,3 +103,13 @@ queryImageFormatProperties
 queryImageFormatProperties physicalDevice format imageType tiling usage flags = do
     Vk.getPhysicalDeviceImageFormatProperties
         physicalDevice format imageType tiling usage flags
+
+-- | Create an Image Subresource ranges for the whole image
+mkImageSubresourceRangeWholeImage :: Vk.ImageAspectFlagBits -> Vk.ImageSubresourceRange
+mkImageSubresourceRangeWholeImage aspectMask = Vk.zero
+    { Vk.aspectMask = aspectMask
+    , Vk.baseMipLevel = 0
+    , Vk.levelCount = Vk.REMAINING_MIP_LEVELS 
+    , Vk.baseArrayLayer = 0
+    , Vk.layerCount = Vk.REMAINING_ARRAY_LAYERS 
+    }

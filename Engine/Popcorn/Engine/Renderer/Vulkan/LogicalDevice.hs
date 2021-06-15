@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DuplicateRecordFields #-}
 
 -- | Vulkan logical device
 module Popcorn.Engine.Renderer.Vulkan.LogicalDevice

@@ -5,14 +5,23 @@ module Popcorn.Engine.Platform.GLFW.Window
 
       -- * Initialization
     , withWindow
+
+      -- * Platform events loop
+    , eventsLoop
     ) where
 
 import Control.Exception (bracket, throwIO)
+import Control.Monad (forever, when)
 import Control.Monad.Managed (Managed, managed)
+import System.Exit (exitSuccess)
 
+import Popcorn.Common.Log.Logger (platformLog)
 import Popcorn.Engine.Application (Application(..))
 import Popcorn.Engine.Exception (EngineException(EngineException))
-import Popcorn.Engine.Platform.GLFW.Utils (glfwLastErrorFriendlyDesc)
+import Popcorn.Engine.Platform.GLFW.Utils
+    ( glfwLastErrorFriendlyDesc
+    , glfwLastErrorFriendlyDescIfAny
+    )
 
 import qualified Data.Text as T
 import qualified Graphics.UI.GLFW as GLFW
@@ -46,3 +55,18 @@ createWindow Application{..} = do
 
 destroyWindow :: Window -> IO ()
 destroyWindow Window{..} = GLFW.destroyWindow windowHandle
+
+-- | Platform run loop
+eventsLoop :: Window -> IO () -> IO ()
+eventsLoop window frame = do
+    forever $ do
+        frame
+
+        GLFW.pollEvents
+
+        glfwLastErrorFriendlyDescIfAny >>= \case
+            Left err -> platformLog ("Error while polling events. " <> err)
+            Right _  -> pure ()
+
+        shouldClose <- GLFW.windowShouldClose (windowHandle window)
+        when shouldClose exitSuccess

@@ -1,14 +1,12 @@
-module Main
-    ( main
-    ) where
+module Main (main) where
 
 import Control.Exception (catch)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Managed (runManaged)
 import Paths_Sandbox (version)
 
 import Popcorn.Common.Log.Logger (clientLog)
 import Popcorn.Engine.Application (Application(..), CliArgs(..), parseArgs)
-import Popcorn.Engine.Engine (showEngineVersion)
 import Popcorn.Engine.Settings (defaultSettings)
 
 import qualified Popcorn.Engine.Engine as Engine
@@ -21,7 +19,7 @@ main = start `catch` (\(e :: Engine.EngineException) -> notifyException e)
 
 start :: IO ()
 start = do
-    engineVersion <- showEngineVersion
+    engineVersion <- Engine.showEngineVersion
     args <- parseArgs engineVersion
 
     clientLog "Popcorn Sandbox is starting..."
@@ -36,14 +34,12 @@ start = do
 
     runManaged $ do
         Platform.withGlfwForVulkanPlatform
-
         window <- Platform.withWindow app
-
         engine <- Engine.withEngineInteractive app window defaultSettings
 
-        -- engine <- Engine.withEngineRenderOffscreen app
+        -- engine <- Engine.withEngineRenderStatic app
 
-        return ()
+        liftIO $ Engine.run engine
 
     clientLog "Popcorn Sandbox has ended succesfully :)"
 

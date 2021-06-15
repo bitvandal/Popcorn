@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DuplicateRecordFields #-}
 
 -- | Vulkan Swapchain extension
 module Popcorn.Engine.Renderer.Vulkan.Swapchain
@@ -8,12 +7,17 @@ module Popcorn.Engine.Renderer.Vulkan.Swapchain
 
       -- * Swapchain creation/destruction
     , withSwapchain
+
+      -- * Presentation
+    , acquireSwapchainImage
+    , queueImageForPresentation
     ) where
 
 import Control.Exception (throwIO)
 import Control.Monad (when)
 import Control.Monad.Managed (MonadManaged)
-import Data.Bits (Bits((.&.), zeroBits))
+import Data.Bits (Bits((.&.), (.|.), zeroBits))
+import Data.Word (Word32)
 
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -26,7 +30,10 @@ import Popcorn.Common.Log.Logger (engineLog)
 import Popcorn.Common.Utils (maybeToEither)
 import Popcorn.Engine.Exception (EngineException(EngineException))
 import Popcorn.Engine.Managed.Extra (bracketManaged)
-import Popcorn.Engine.Renderer.Vulkan.Image (Image(Image), canCreateImage, withImageView)
+import Popcorn.Engine.Renderer.Vulkan.Image
+    ( Image(Image)
+    , canCreateImage
+    )
 import Popcorn.Engine.Renderer.Vulkan.Internal.Surface (Surface(..), SurfaceInfo(..))
 import Popcorn.Engine.Renderer.Vulkan.PhysicalDevice
     ( QueueFamily
@@ -39,8 +46,7 @@ import Control.Monad.Trans.Except (ExceptT(ExceptT), runExceptT)
 -- | Vulkan Swapchain and associated data
 data Swapchain = Swapchain
     { swapchainHandle :: Vk.SwapchainKHR
-    , swapchainImages :: V.Vector Image
-    , swapchainImageViews :: V.Vector Vk.ImageView
+    , swapchainImage :: Image
     }
 
 -- | Manages a Swapchain
@@ -54,13 +60,9 @@ withSwapchain
     -> QueueFamily
     -> m Swapchain
 withSwapchain vd device surface settings graphicsQueue presentQueue = do
-    swapchain <- bracketManaged
+    bracketManaged
         (createSwapchain vd device surface settings graphicsQueue presentQueue)
         (destroySwapchain device)
-
-    imageViews <- traverse (withImageView device) (swapchainImages swapchain)
-
-    pure $ swapchain { swapchainImageViews = imageViews }
 
 createSwapchain
     :: VulkanDevice
@@ -85,11 +87,14 @@ createSwapchain vd device surface settings graphicsQueue presentQueue = do
     when (vkResult /= Vk.SUCCESS) $
         throwIO (EngineException "[Renderer] Could not retrieve all swapchain images!")
 
+    -- For now, only 1 swapchain image is supported to minimize synchronization code
+    when (V.length images /= 1) $ do
+        throwIO (EngineException "[Renderer] Only 1 swapchain image is supported for now!")
+
     engineLog ("Vulkan Swapchain created with " <> T.pack (show (V.length images)) <> " images")
 
     let imageFormat = fst (selectSurfaceFormat surface)
-        swapchainImages = V.map (`Image` imageFormat) images
-        swapchainImageViews = []
+        swapchainImage = Image (V.head images) imageFormat 
 
     return Swapchain{..}
 
@@ -105,7 +110,7 @@ mkSwapchainCreateInfoKHR
     -> Vk.SwapchainCreateInfoKHR '[]
 mkSwapchainCreateInfoKHR surface settings graphicsQueue presentQueue = Vk.zero
     { Vk.surface = surfaceHandle surface
-    , Vk.minImageCount = max 2 surfaceMinImageCount
+    , Vk.minImageCount = 1
     , Vk.imageFormat = imageFormat
     , Vk.imageColorSpace = imageColorSpace
     , Vk.imageExtent = swapchainExtent (surfaceInfo surface)
@@ -126,8 +131,6 @@ mkSwapchainCreateInfoKHR surface settings graphicsQueue presentQueue = Vk.zero
         if supportedTransforms .&. Vk.SURFACE_TRANSFORM_IDENTITY_BIT_KHR /= zeroBits
             then Vk.SURFACE_TRANSFORM_IDENTITY_BIT_KHR
             else Vk.currentTransform surfaceCapabilities
-    surfaceMinImageCount =
-        Vk.minImageCount (surfaceCapabilities :: Vk.SurfaceCapabilitiesKHR)
     (sharingMode, queueFamilies) =
         if queueFamilyIndex graphicsQueue == queueFamilyIndex presentQueue
             then (Vk.SHARING_MODE_EXCLUSIVE, [])
@@ -154,7 +157,8 @@ preferredImageColorSpace :: Vk.ColorSpaceKHR
 preferredImageColorSpace = Vk.COLOR_SPACE_SRGB_NONLINEAR_KHR
 
 swapchainImageUsage :: Vk.ImageUsageFlagBits
-swapchainImageUsage = Vk.IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+swapchainImageUsage =
+    Vk.IMAGE_USAGE_COLOR_ATTACHMENT_BIT .|. Vk.IMAGE_USAGE_TRANSFER_DST_BIT
 
 swapchainCompositeAlpha :: Vk.CompositeAlphaFlagBitsKHR
 swapchainCompositeAlpha = Vk.COMPOSITE_ALPHA_OPAQUE_BIT_KHR
@@ -202,3 +206,33 @@ surfaceSupportsCompositeAlpha info =
     else Right ()
   where
     supportedCompositeAlpha = Vk.supportedCompositeAlpha (surfaceInfoCapabilities info)
+
+-- | Acquire a Swapchain image for presentation and return its index. Semaphore should be
+-- be signaled before the image can be used.
+acquireSwapchainImage :: Vk.Device -> Swapchain -> Vk.Semaphore -> IO Word32
+acquireSwapchainImage device swapchain semaphore = do
+    let timeout = maxBound
+
+    (vkResult, imageIndex) <- Vk.acquireNextImageKHR device (swapchainHandle swapchain)
+        timeout semaphore Vk.NULL_HANDLE
+
+    when (vkResult /= Vk.SUCCESS) $ do
+        throwIO $ EngineException (T.pack ("Acquire image failed: " <> show vkResult))
+
+    pure imageIndex
+
+-- | Queues an acquired image for presentation.
+queueImageForPresentation :: Vk.Queue -> Swapchain -> Word32 -> Vk.Semaphore -> IO () 
+queueImageForPresentation queueHandle swapchain imageIndex semaphore = do
+    vkResult <- Vk.queuePresentKHR queueHandle
+        (mkPresentInfoKHR swapchain imageIndex semaphore)
+
+    when (vkResult /= Vk.SUCCESS) $ do
+        throwIO $ EngineException (T.pack ("Queue present failed: " <> show vkResult))
+
+mkPresentInfoKHR :: Swapchain -> Word32 -> Vk.Semaphore -> Vk.PresentInfoKHR '[] 
+mkPresentInfoKHR swapchain imageIndex semaphore = Vk.zero
+    { Vk.waitSemaphores = [semaphore]
+    , Vk.swapchains = [swapchainHandle swapchain]
+    , Vk.imageIndices = [imageIndex]
+    }

@@ -1,5 +1,3 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-
 -- | Vulkan Physical Devices
 module Popcorn.Engine.Renderer.Vulkan.PhysicalDevice
     ( -- * Data types
@@ -7,11 +5,11 @@ module Popcorn.Engine.Renderer.Vulkan.PhysicalDevice
     , QueueFamily(..)
 
       -- * Device selection
+    , selectInteractiveGraphicsDevice
     , selectGraphicsDevice
-    , selectOffscreenGraphicsDevice
 
       -- * Device Queue functions
-    , findGraphicsQueueFamily
+    , findGraphicsQueueFamilyIndex
 
       -- * Utilities
     , vulkanDeviceFriendlyDesc
@@ -43,33 +41,29 @@ data VulkanDevice = VulkanDevice
 
 -- | Vulkan Queue Family
 data QueueFamily = QueueFamily
-    { queueFamilyHandles :: V.Vector Vk.Queue -- ^ Queues handles
-    , queueFamilyIndex :: Word32              -- ^ Index of the queue family
+    { queueFamilyIndex :: Word32        -- ^ Index of the queue family
+    , queueFamilyHandle :: Vk.Queue     -- ^ Queue handle
     }
 
 -- | Enumerates Vulkan Physical Devices and returns the first graphics device found
-selectGraphicsDevice :: Vk.Instance -> IO (Either T.Text VulkanDevice)
-selectGraphicsDevice =
+-- with Swapchain support
+selectInteractiveGraphicsDevice :: Vk.Instance -> IO (Either T.Text VulkanDevice)
+selectInteractiveGraphicsDevice =
     findDeviceBy (\device -> do
         let isGraphics = isGraphicsDevice device
         hasSwapchain <- hasSwapchainSupport device
         pure (isGraphics && hasSwapchain))
 
--- | Enumerates Vulkan Physical Devices and returns the first graphics device found 
--- suitable for off-screen rendering
-selectOffscreenGraphicsDevice :: Vk.Instance -> IO (Either T.Text VulkanDevice)
-selectOffscreenGraphicsDevice = findDeviceBy (pure . isGraphicsDevice)
+-- | Enumerates Vulkan Physical Devices and returns the first graphics device found
+-- suitable for rendering static images
+selectGraphicsDevice :: Vk.Instance -> IO (Either T.Text VulkanDevice)
+selectGraphicsDevice = findDeviceBy (pure . isGraphicsDevice)
 
 -- | Returns the first Graphics Queue Family of a given VulkanDevice
-findGraphicsQueueFamily :: VulkanDevice -> Either T.Text QueueFamily
-findGraphicsQueueFamily VulkanDevice{..} = maybe
-    (Left "[Renderer] Could not retrieve a graphics queue family")
-    (\i -> Right $ QueueFamily
-        { queueFamilyIndex = i
-        , queueFamilyHandles = []
-        }) 
-    found
-  where        
+findGraphicsQueueFamilyIndex :: VulkanDevice -> Either T.Text Word32
+findGraphicsQueueFamilyIndex VulkanDevice{..} = maybe
+    (Left "[Renderer] Could not retrieve a graphics queue family index") Right found
+  where
     properties = V.zip [0..] vdQueueFamilyProperties
     found = fst <$> V.find (\(_, p) -> hasGraphicsQueue p) properties
 
@@ -128,11 +122,11 @@ vulkanDeviceFriendlyDesc VulkanDevice{..} = mconcat
 
 apiVersionDesc :: Word32 -> T.Text
 apiVersionDesc apiVersion = mconcat
-    [ T.pack (show (Vk._VERSION_MAJOR apiVersion))
+    [ T.pack (show (Vk._API_VERSION_MAJOR apiVersion))
     , "."
-    , T.pack (show (Vk._VERSION_MINOR apiVersion))
+    , T.pack (show (Vk._API_VERSION_MINOR apiVersion))
     , "."
-    , T.pack (show (Vk._VERSION_PATCH apiVersion))
+    , T.pack (show (Vk._API_VERSION_PATCH apiVersion))
     ]
 
 deviceTypeDesc :: Vk.PhysicalDeviceType -> T.Text
