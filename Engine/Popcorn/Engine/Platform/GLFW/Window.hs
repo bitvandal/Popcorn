@@ -26,20 +26,22 @@ import Popcorn.Engine.Platform.GLFW.Utils
 import qualified Data.Text as T
 import qualified Graphics.UI.GLFW as GLFW
 
+import Popcorn.Engine.Settings (Settings(..), WindowMode(..))
+
 -- | The GLFW Platform window
 newtype Window = Window
     { windowHandle :: GLFW.Window
     }
 
 -- | Returns the GLFW Platform Window
-withWindow :: Application -> Managed Window
-withWindow app = managed (bracket (createWindow app) destroyWindow)
+withWindow :: Application -> Settings -> Managed Window
+withWindow app settings = managed (bracket (createWindow app settings) destroyWindow)
 
-createWindow :: Application -> IO Window
-createWindow Application{..} = do
+createWindow :: Application -> Settings -> IO Window
+createWindow Application{..} settings = do
     GLFW.windowHint (GLFW.WindowHint'CenterCursor False)
     GLFW.windowHint (GLFW.WindowHint'ClientAPI GLFW.ClientAPI'NoAPI)
-    GLFW.windowHint (GLFW.WindowHint'Resizable False)
+    GLFW.windowHint (GLFW.WindowHint'Resizable (sWindowMode settings == WindowedResizable))
 
     let width = applicationMainWindowWidth
     let height = applicationMainWindowHeight

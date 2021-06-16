@@ -14,10 +14,12 @@ import Data.Version (Version)
 import qualified Data.Text as T
 import qualified Options.Applicative as Opts
 
--- | Application properties
+-- | Application properties, including command line arguments
 data Application = Application
     { applicationName :: T.Text
     , applicationVersion :: Version
+
+    -- Command line arguments
     , applicationDebugEnabled :: Bool
     , applicationMainWindowWidth :: Int
     , applicationMainWindowHeight :: Int

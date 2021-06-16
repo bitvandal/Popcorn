@@ -216,7 +216,7 @@ acquireSwapchainImage device swapchain semaphore = do
     (vkResult, imageIndex) <- Vk.acquireNextImageKHR device (swapchainHandle swapchain)
         timeout semaphore Vk.NULL_HANDLE
 
-    when (vkResult /= Vk.SUCCESS) $ do
+    when (vkResult /= Vk.SUCCESS && vkResult /= Vk.SUBOPTIMAL_KHR) $ do
         throwIO $ EngineException (T.pack ("Acquire image failed: " <> show vkResult))
 
     pure imageIndex
@@ -227,7 +227,7 @@ queueImageForPresentation queueHandle swapchain imageIndex semaphore = do
     vkResult <- Vk.queuePresentKHR queueHandle
         (mkPresentInfoKHR swapchain imageIndex semaphore)
 
-    when (vkResult /= Vk.SUCCESS) $ do
+    when (vkResult /= Vk.SUCCESS && vkResult /= Vk.SUBOPTIMAL_KHR) $ do
         throwIO $ EngineException (T.pack ("Queue present failed: " <> show vkResult))
 
 mkPresentInfoKHR :: Swapchain -> Word32 -> Vk.Semaphore -> Vk.PresentInfoKHR '[] 

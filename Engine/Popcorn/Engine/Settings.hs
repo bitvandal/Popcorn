@@ -3,15 +3,17 @@ module Popcorn.Engine.Settings
     ( -- * Data types
       Settings(..)
     , VerticalSyncMode(..)
+    , WindowMode(..)
 
     -- * Stock configurations
     , defaultSettings
     ) where
 
 -- | Engine settings
-newtype Settings = Settings
+data Settings = Settings
     { sVerticalSync :: VerticalSyncMode
-    } deriving stock Show
+    , sWindowMode :: WindowMode
+    } deriving stock (Eq, Show)
 
 -- | V-Sync modes
 data VerticalSyncMode =
@@ -19,8 +21,15 @@ data VerticalSyncMode =
     | WhatVSyncModesDoIWant
     deriving stock (Eq, Show)
 
+-- | Platform Window mode
+data WindowMode
+    = Windowed
+    | WindowedResizable
+    deriving stock (Eq, Show)
+
 -- | Stock default settings
 defaultSettings:: Settings
 defaultSettings = Settings
     { sVerticalSync = NoVSync
+    , sWindowMode = Windowed
     }

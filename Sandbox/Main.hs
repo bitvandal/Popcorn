@@ -7,7 +7,7 @@ import Paths_Sandbox (version)
 
 import Popcorn.Common.Log.Logger (clientLog)
 import Popcorn.Engine.Application (Application(..), CliArgs(..), parseArgs)
-import Popcorn.Engine.Settings (defaultSettings)
+import Popcorn.Engine.Settings (Settings(..), WindowMode(..), defaultSettings)
 
 import qualified Popcorn.Engine.Engine as Engine
 import qualified Popcorn.Engine.Exception as Engine
@@ -31,11 +31,12 @@ start = do
             , applicationMainWindowWidth = cliArgsAppMainWindowWidth args
             , applicationMainWindowHeight = cliArgsAppMainWindowHeight args
             }
+        settings = defaultSettings { sWindowMode = WindowedResizable }
 
     runManaged $ do
         Platform.withGlfwForVulkanPlatform
-        window <- Platform.withWindow app
-        engine <- Engine.withEngineInteractive app window defaultSettings
+        window <- Platform.withWindow app settings
+        engine <- Engine.withEngineInteractive app window settings
 
         -- engine <- Engine.withEngineRenderStatic app
 
