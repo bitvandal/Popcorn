@@ -16,7 +16,6 @@ module Popcorn.Engine.Renderer.Vulkan.CommandBuffer
     , freeCommandBuffers
     ) where
 
-import Control.Monad.IO.Class (MonadIO)
 import Control.Monad.Managed(MonadManaged)
 
 import qualified Data.Vector as V
@@ -106,7 +105,7 @@ mkCommandBufferAllocateInfo commandPool count = Vk.zero
 
 -- | Wraps recording a single time use command buffer that, when it is executed, moves
 -- to the Invalid state 
-recordSingleUseCommandBuffer :: MonadIO io => Vk.CommandBuffer -> io r -> io r
+recordSingleUseCommandBuffer :: Vk.CommandBuffer -> IO a -> IO a
 recordSingleUseCommandBuffer cb = Vk.useCommandBuffer cb
     (mkCommandBufferBeginInfo Vk.COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT)
 

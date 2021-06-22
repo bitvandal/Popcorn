@@ -36,11 +36,13 @@ library
     Popcorn.Engine.Platform.GLFW.Window
     Popcorn.Engine.Renderer.VulkanRenderer
     Popcorn.Engine.Renderer.Vulkan.CommandBuffer
+    Popcorn.Engine.Renderer.Vulkan.Framebuffer
     Popcorn.Engine.Renderer.Vulkan.Image
     Popcorn.Engine.Renderer.Vulkan.Instance
     Popcorn.Engine.Renderer.Vulkan.LogicalDevice
     Popcorn.Engine.Renderer.Vulkan.PhysicalDevice
     Popcorn.Engine.Renderer.Vulkan.Platform.GLFW
+    Popcorn.Engine.Renderer.Vulkan.RenderPass
     Popcorn.Engine.Renderer.Vulkan.Surface
     Popcorn.Engine.Renderer.Vulkan.Swapchain
     Popcorn.Engine.Renderer.Vulkan.Sychronization

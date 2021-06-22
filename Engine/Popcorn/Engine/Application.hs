@@ -19,9 +19,18 @@ data Application = Application
     { applicationName :: T.Text
     , applicationVersion :: Version
 
-    -- Command line arguments
+      -- Populated from command line arguments
+
+      -- | Set to true in order to enable debugging throughout the application. For
+      -- instance, for Vulkan renderer the validation layers will be enabled.
     , applicationDebugEnabled :: Bool
+
+      -- | Main window width in pixels. Intended to be used for window creation only,
+      -- it won't update on window resize
     , applicationMainWindowWidth :: Int
+
+      -- | Main window height in pixels. Intended to be used for window creation only,
+      -- it won't update on window resize
     , applicationMainWindowHeight :: Int
     } deriving stock (Eq, Show)
 

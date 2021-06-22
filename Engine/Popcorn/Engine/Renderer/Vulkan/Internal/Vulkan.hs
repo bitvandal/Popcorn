@@ -5,6 +5,7 @@ module Popcorn.Engine.Renderer.Vulkan.Internal.Vulkan
     , VulkanRendererStatic(..)
     ) where
 
+import Popcorn.Engine.Renderer.Vulkan.Framebuffer (Framebuffer)
 import Popcorn.Engine.Renderer.Vulkan.Internal.Surface (Surface)
 import Popcorn.Engine.Renderer.Vulkan.PhysicalDevice (VulkanDevice, QueueFamily)
 import Popcorn.Engine.Renderer.Vulkan.Swapchain (Swapchain)
@@ -28,7 +29,10 @@ data VulkanRendererInteractive = VulkanRendererInteractive
     , rSurface :: Surface                   -- Surface
     , rSwapchain :: Swapchain               -- Swapchain
     , rImageReadySemaphore :: Vk.Semaphore  -- Swapchain image is ready 
-    , rCommandsExecutedSemaphore :: Vk.Semaphore  -- Command Buffer commands are executed
+    , rCommandsExecutedSemaphore :: Vk.Semaphore   -- Command Buffer commands are executed
+    , rRenderPass :: Vk.RenderPass          -- Vulkan Render Pass (static)
+    , rRenderPassClearScreen :: Vk.RenderPass   -- Vulkan Render Pass (clears screen)
+    , rFramebuffer :: Framebuffer           -- Wrapper over Vulkan Framebuffer
     }
 
 -- | Renders static images  

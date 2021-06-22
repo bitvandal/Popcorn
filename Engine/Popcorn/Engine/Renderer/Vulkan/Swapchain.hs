@@ -33,6 +33,7 @@ import Popcorn.Engine.Managed.Extra (bracketManaged)
 import Popcorn.Engine.Renderer.Vulkan.Image
     ( Image(Image)
     , canCreateImage
+    , withImageView
     )
 import Popcorn.Engine.Renderer.Vulkan.Internal.Surface (Surface(..), SurfaceInfo(..))
 import Popcorn.Engine.Renderer.Vulkan.PhysicalDevice
@@ -47,6 +48,8 @@ import Control.Monad.Trans.Except (ExceptT(ExceptT), runExceptT)
 data Swapchain = Swapchain
     { swapchainHandle :: Vk.SwapchainKHR
     , swapchainImage :: Image
+    , swapchainImageFormat :: Vk.Format
+    , swapchainImageView :: Maybe Vk.ImageView
     }
 
 -- | Manages a Swapchain
@@ -60,9 +63,13 @@ withSwapchain
     -> QueueFamily
     -> m Swapchain
 withSwapchain vd device surface settings graphicsQueue presentQueue = do
-    bracketManaged
+    swapchain <- bracketManaged
         (createSwapchain vd device surface settings graphicsQueue presentQueue)
         (destroySwapchain device)
+
+    imageView <- withImageView device (swapchainImage swapchain)
+
+    pure swapchain { swapchainImageView = Just imageView }
 
 createSwapchain
     :: VulkanDevice
@@ -91,10 +98,11 @@ createSwapchain vd device surface settings graphicsQueue presentQueue = do
     when (V.length images /= 1) $ do
         throwIO (EngineException "[Renderer] Only 1 swapchain image is supported for now!")
 
-    engineLog ("Vulkan Swapchain created with " <> T.pack (show (V.length images)) <> " images")
+    let swapchainImageFormat = fst (selectSurfaceFormat surface)
+        swapchainImage = Image (V.head images) swapchainImageFormat
+        swapchainImageView = Nothing
 
-    let imageFormat = fst (selectSurfaceFormat surface)
-        swapchainImage = Image (V.head images) imageFormat 
+    engineLog ("Vulkan Swapchain created with " <> T.pack (show (V.length images)) <> " images")
 
     return Swapchain{..}
 

@@ -7,6 +7,8 @@ module Popcorn.Engine.Renderer.VulkanRenderer
     -- * Renderization
     , frame
     , frame2
+    , frame3
+    , frame4
 
     -- * Re-exports
     , module Popcorn.Engine.Renderer.Vulkan.Internal.Vulkan
@@ -15,6 +17,7 @@ module Popcorn.Engine.Renderer.VulkanRenderer
 import Control.Monad.Trans.Except (ExceptT(ExceptT), runExceptT)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Managed (MonadManaged)
+import Data.Maybe (fromJust)
 
 import Popcorn.Common.Log.Logger (engineLog)
 import Popcorn.Engine.Application (Application(..))
@@ -24,6 +27,10 @@ import Popcorn.Engine.Renderer.Vulkan.CommandBuffer
     , resetCommandPool
     , withCommandBuffers
     , withCommandPool
+    )
+import Popcorn.Engine.Renderer.Vulkan.Framebuffer
+    ( Attachments(..)
+    , withFramebuffer
     )
 import Popcorn.Engine.Renderer.Vulkan.Image
     (Image(imageHandle)
@@ -45,6 +52,7 @@ import Popcorn.Engine.Renderer.Vulkan.PhysicalDevice
     , vulkanDeviceFriendlyDesc
     )
 import Popcorn.Engine.Renderer.Vulkan.Platform.GLFW (vulkanRequiredInstanceExtensions)
+import Popcorn.Engine.Renderer.Vulkan.RenderPass (useRenderPass, withRenderPass)
 import Popcorn.Engine.Renderer.Vulkan.Surface
     ( withVulkanSurface
     , findPresentQueueFamilyIndex
@@ -53,6 +61,8 @@ import Popcorn.Engine.Renderer.Vulkan.Swapchain
     ( acquireSwapchainImage
     , queueImageForPresentation
     , swapchainImage
+    , swapchainImageFormat
+    , swapchainImageView
     , withSwapchain
     )
 import Popcorn.Engine.Renderer.Vulkan.Sychronization (waitDeviceIdle, withSemaphore)
@@ -70,7 +80,7 @@ withVulkanRenderer
     :: MonadManaged m
     => Application                                  -- ^ Application properties
     -> Window                                       -- ^ Window
-    -> Settings                                     -- ^ Engine settings
+    -> Settings                                     -- ^ Engine creation settings
     -> m (Either T.Text VulkanRendererInteractive)  -- ^ The Vulkan Renderer
 withVulkanRenderer app window settings = runExceptT $ do
     instExts <- liftIO vulkanRequiredInstanceExtensions
@@ -101,11 +111,22 @@ withVulkanRenderer app window settings = runExceptT $ do
     rSwapchain <- withSwapchain rGraphicsDevice rLogicalDevice
         rSurface settings rGraphicsQueue rPresentQueue
 
+    let imageView = fromJust (swapchainImageView rSwapchain)
+
+    let width = fromIntegral (applicationMainWindowWidth app)
+        height = fromIntegral (applicationMainWindowHeight app)
+        attachments = Attachments imageView (Vk.Extent2D width height)
+
     rCommandPool <- withCommandPool rLogicalDevice rGraphicsQueue
     rCommandBuffer <- V.head <$> withCommandBuffers rLogicalDevice rCommandPool 1
 
     rImageReadySemaphore <- withSemaphore rLogicalDevice
     rCommandsExecutedSemaphore <- withSemaphore rLogicalDevice
+
+    rRenderPass <- withRenderPass rLogicalDevice (swapchainImageFormat rSwapchain) False
+    rRenderPassClearScreen <- withRenderPass rLogicalDevice
+        (swapchainImageFormat rSwapchain) True
+    rFramebuffer <- withFramebuffer rLogicalDevice rRenderPass attachments
 
     liftIO (engineLog (vulkanDeviceFriendlyDesc rGraphicsDevice)
         >>  engineLog "Initialized Renderer: Vulkan 1.0")
@@ -137,7 +158,7 @@ withVulkanRendererStatic app = runExceptT $ do
 
     pure VulkanRendererStatic{..}
 
--- | Render a frame
+-- | Render a frame (without clear screen)
 frame :: VulkanRendererInteractive -> IO ()
 frame VulkanRendererInteractive{..} = do
     imageIndex <- acquireSwapchainImage rLogicalDevice rSwapchain rImageReadySemaphore
@@ -176,7 +197,7 @@ frame VulkanRendererInteractive{..} = do
 
     resetCommandPool rLogicalDevice rCommandPool
 
--- | Render a frame
+-- | Render a frame (with clear screen)
 frame2 :: VulkanRendererInteractive -> IO ()
 frame2 VulkanRendererInteractive{..} = do
     imageIndex <- acquireSwapchainImage rLogicalDevice rSwapchain rImageReadySemaphore
@@ -221,6 +242,60 @@ frame2 VulkanRendererInteractive{..} = do
             Vk.zero V.empty V.empty [imageMemoryBarrier2]
 
     let submitInfo =  Vk.SomeStruct Vk.zero
+            { Vk.waitSemaphores = [rImageReadySemaphore]
+            , Vk.waitDstStageMask = [Vk.PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT]
+            , Vk.commandBuffers = [Vk.commandBufferHandle rCommandBuffer]
+            , Vk.signalSemaphores = [rCommandsExecutedSemaphore]
+            }
+        queueHandle = queueFamilyHandle rGraphicsQueue 
+
+    Vk.queueSubmit queueHandle [submitInfo] Vk.NULL_HANDLE 
+
+    queueImageForPresentation (queueFamilyHandle rPresentQueue) rSwapchain imageIndex
+        rCommandsExecutedSemaphore
+
+    waitDeviceIdle rLogicalDevice
+
+    resetCommandPool rLogicalDevice rCommandPool
+
+-- | Render a frame (with a render pass, and without clear screen)
+frame3 :: VulkanRendererInteractive -> IO ()
+frame3 VulkanRendererInteractive{..} = do
+    imageIndex <- acquireSwapchainImage rLogicalDevice rSwapchain rImageReadySemaphore
+
+    recordSingleUseCommandBuffer rCommandBuffer $
+        useRenderPass rRenderPass rCommandBuffer rFramebuffer Nothing $
+            pure ()
+
+    let submitInfo = Vk.SomeStruct Vk.zero
+            { Vk.waitSemaphores = [rImageReadySemaphore]
+            , Vk.waitDstStageMask = [Vk.PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT]
+            , Vk.commandBuffers = [Vk.commandBufferHandle rCommandBuffer]
+            , Vk.signalSemaphores = [rCommandsExecutedSemaphore]
+            }
+        queueHandle = queueFamilyHandle rGraphicsQueue 
+
+    Vk.queueSubmit queueHandle [submitInfo] Vk.NULL_HANDLE 
+
+    queueImageForPresentation (queueFamilyHandle rPresentQueue) rSwapchain imageIndex
+        rCommandsExecutedSemaphore
+
+    waitDeviceIdle rLogicalDevice
+
+    resetCommandPool rLogicalDevice rCommandPool
+
+-- | Render a frame (with a render pass and with clear screen)
+frame4 :: VulkanRendererInteractive -> IO ()
+frame4 VulkanRendererInteractive{..} = do
+    imageIndex <- acquireSwapchainImage rLogicalDevice rSwapchain rImageReadySemaphore
+
+    let clearColor = Vk.Color (Vk.Float32 0.66 0.33 0.0 0.0)
+
+    recordSingleUseCommandBuffer rCommandBuffer $ do
+        useRenderPass rRenderPassClearScreen rCommandBuffer rFramebuffer
+            (Just clearColor) $ pure ()
+
+    let submitInfo = Vk.SomeStruct Vk.zero
             { Vk.waitSemaphores = [rImageReadySemaphore]
             , Vk.waitDstStageMask = [Vk.PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT]
             , Vk.commandBuffers = [Vk.commandBufferHandle rCommandBuffer]
