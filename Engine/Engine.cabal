@@ -41,8 +41,10 @@ library
     Popcorn.Engine.Renderer.Vulkan.Instance
     Popcorn.Engine.Renderer.Vulkan.LogicalDevice
     Popcorn.Engine.Renderer.Vulkan.PhysicalDevice
+    Popcorn.Engine.Renderer.Vulkan.Pipeline
     Popcorn.Engine.Renderer.Vulkan.Platform.GLFW
     Popcorn.Engine.Renderer.Vulkan.RenderPass
+    Popcorn.Engine.Renderer.Vulkan.Shader
     Popcorn.Engine.Renderer.Vulkan.Surface
     Popcorn.Engine.Renderer.Vulkan.Swapchain
     Popcorn.Engine.Renderer.Vulkan.Sychronization
@@ -59,6 +61,8 @@ library
     , bytestring
     , Common
     , containers
+    , directory
+    , filepath
     , GLFW-b >=3.3 && <4.0
     , managed
     , optparse-applicative

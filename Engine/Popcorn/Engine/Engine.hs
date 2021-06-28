@@ -68,7 +68,7 @@ run engine = case engineRenderer engine of
 runInteractive :: Engine -> R.VulkanRendererInteractive -> IO ()
 runInteractive engine renderer = do
     let window = fromJust (engineWindow engine)
-    eventsLoop window (R.frame4 renderer)
+    eventsLoop window (R.frame6 renderer)
 
 -- | Set up The Engine for rendering to a static image
 withEngineRenderStatic :: Application -> Managed Engine

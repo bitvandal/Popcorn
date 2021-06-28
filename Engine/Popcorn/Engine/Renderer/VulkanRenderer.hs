@@ -9,6 +9,8 @@ module Popcorn.Engine.Renderer.VulkanRenderer
     , frame2
     , frame3
     , frame4
+    , frame5
+    , frame6
 
     -- * Re-exports
     , module Popcorn.Engine.Renderer.Vulkan.Internal.Vulkan
@@ -51,8 +53,10 @@ import Popcorn.Engine.Renderer.Vulkan.PhysicalDevice
     , selectGraphicsDevice
     , vulkanDeviceFriendlyDesc
     )
+import Popcorn.Engine.Renderer.Vulkan.Pipeline (PipelineDef(..), withPipelines)
 import Popcorn.Engine.Renderer.Vulkan.Platform.GLFW (vulkanRequiredInstanceExtensions)
 import Popcorn.Engine.Renderer.Vulkan.RenderPass (useRenderPass, withRenderPass)
+import Popcorn.Engine.Renderer.Vulkan.Shader
 import Popcorn.Engine.Renderer.Vulkan.Surface
     ( withVulkanSurface
     , findPresentQueueFamilyIndex
@@ -127,6 +131,17 @@ withVulkanRenderer app window settings = runExceptT $ do
     rRenderPassClearScreen <- withRenderPass rLogicalDevice
         (swapchainImageFormat rSwapchain) True
     rFramebuffer <- withFramebuffer rLogicalDevice rRenderPass attachments
+
+    vsBytes <- liftIO $ loadShaderBytecode "SimpleVS"
+    fsBytes <- liftIO $ loadShaderBytecode "SimpleFS"
+
+    vs <- withShaderModule rLogicalDevice "SimpleVS" vsBytes
+    fs <- withShaderModule rLogicalDevice "SimpleFS" fsBytes
+
+    let pipelineDefs = [PipelineDef rRenderPass 0 vs fs
+            (Vk.Offset2D 0 0) (Vk.Extent2D width height)]
+
+    rGraphicsPipelines <- withPipelines rLogicalDevice pipelineDefs
 
     liftIO (engineLog (vulkanDeviceFriendlyDesc rGraphicsDevice)
         >>  engineLog "Initialized Renderer: Vulkan 1.0")
@@ -294,6 +309,65 @@ frame4 VulkanRendererInteractive{..} = do
     recordSingleUseCommandBuffer rCommandBuffer $ do
         useRenderPass rRenderPassClearScreen rCommandBuffer rFramebuffer
             (Just clearColor) $ pure ()
+
+    let submitInfo = Vk.SomeStruct Vk.zero
+            { Vk.waitSemaphores = [rImageReadySemaphore]
+            , Vk.waitDstStageMask = [Vk.PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT]
+            , Vk.commandBuffers = [Vk.commandBufferHandle rCommandBuffer]
+            , Vk.signalSemaphores = [rCommandsExecutedSemaphore]
+            }
+        queueHandle = queueFamilyHandle rGraphicsQueue 
+
+    Vk.queueSubmit queueHandle [submitInfo] Vk.NULL_HANDLE 
+
+    queueImageForPresentation (queueFamilyHandle rPresentQueue) rSwapchain imageIndex
+        rCommandsExecutedSemaphore
+
+    waitDeviceIdle rLogicalDevice
+
+    resetCommandPool rLogicalDevice rCommandPool
+
+-- | Render a triangle (with a render pass, without clear screen, and vertex data in shader code)
+frame5 :: VulkanRendererInteractive -> IO ()
+frame5 VulkanRendererInteractive{..} = do
+    imageIndex <- acquireSwapchainImage rLogicalDevice rSwapchain rImageReadySemaphore
+
+    recordSingleUseCommandBuffer rCommandBuffer $
+        useRenderPass rRenderPass rCommandBuffer rFramebuffer Nothing $ do
+            Vk.cmdBindPipeline rCommandBuffer Vk.PIPELINE_BIND_POINT_GRAPHICS
+                (V.head rGraphicsPipelines)
+            Vk.cmdDraw rCommandBuffer 3 1 0 0
+
+    let submitInfo = Vk.SomeStruct Vk.zero
+            { Vk.waitSemaphores = [rImageReadySemaphore]
+            , Vk.waitDstStageMask = [Vk.PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT]
+            , Vk.commandBuffers = [Vk.commandBufferHandle rCommandBuffer]
+            , Vk.signalSemaphores = [rCommandsExecutedSemaphore]
+            }
+        queueHandle = queueFamilyHandle rGraphicsQueue 
+
+    Vk.queueSubmit queueHandle [submitInfo] Vk.NULL_HANDLE 
+
+    queueImageForPresentation (queueFamilyHandle rPresentQueue) rSwapchain imageIndex
+        rCommandsExecutedSemaphore
+
+    waitDeviceIdle rLogicalDevice
+
+    resetCommandPool rLogicalDevice rCommandPool
+
+-- | Render a triangle (with a render pass, with clear screen, and vertex data in shader code)
+frame6 :: VulkanRendererInteractive -> IO ()
+frame6 VulkanRendererInteractive{..} = do
+    imageIndex <- acquireSwapchainImage rLogicalDevice rSwapchain rImageReadySemaphore
+
+    let clearColor = Vk.Color (Vk.Float32 0.66 0.33 0.0 0.0)
+
+    recordSingleUseCommandBuffer rCommandBuffer $
+        useRenderPass rRenderPassClearScreen rCommandBuffer rFramebuffer
+            (Just clearColor) $ do
+                Vk.cmdBindPipeline rCommandBuffer Vk.PIPELINE_BIND_POINT_GRAPHICS
+                    (V.head rGraphicsPipelines)
+                Vk.cmdDraw rCommandBuffer 3 1 0 0
 
     let submitInfo = Vk.SomeStruct Vk.zero
             { Vk.waitSemaphores = [rImageReadySemaphore]

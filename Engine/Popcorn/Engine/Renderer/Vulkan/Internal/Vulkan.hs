@@ -10,6 +10,7 @@ import Popcorn.Engine.Renderer.Vulkan.Internal.Surface (Surface)
 import Popcorn.Engine.Renderer.Vulkan.PhysicalDevice (VulkanDevice, QueueFamily)
 import Popcorn.Engine.Renderer.Vulkan.Swapchain (Swapchain)
 
+import qualified Data.Vector as V
 import qualified Vulkan.Core10 as Vk
 
 -- | The Vulkan renderers: interactive, static.
@@ -33,6 +34,7 @@ data VulkanRendererInteractive = VulkanRendererInteractive
     , rRenderPass :: Vk.RenderPass          -- Vulkan Render Pass (static)
     , rRenderPassClearScreen :: Vk.RenderPass   -- Vulkan Render Pass (clears screen)
     , rFramebuffer :: Framebuffer           -- Wrapper over Vulkan Framebuffer
+    , rGraphicsPipelines :: V.Vector Vk.Pipeline -- Graphics pipelines
     }
 
 -- | Renders static images  
