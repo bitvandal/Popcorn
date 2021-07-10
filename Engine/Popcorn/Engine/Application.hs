@@ -11,10 +11,12 @@ module Popcorn.Engine.Application
 import Data.Char (isDigit)
 import Data.Version (Version)
 
+import Popcorn.Engine.Settings
+
 import qualified Data.Text as T
 import qualified Options.Applicative as Opts
 
--- | Application properties, including command line arguments
+-- | Application properties, including command line arguments. Static, set at launch time.
 data Application = Application
     { applicationName :: T.Text
     , applicationVersion :: Version
@@ -62,13 +64,13 @@ cliArgsParser = CliArgs
     <*> Opts.option (uintArg 160 3840)
         (Opts.long "width"
         <> Opts.short 'w'
-        <> Opts.value 1024
+        <> Opts.value 1280
         <> Opts.metavar "<main-window-width>"
         <> Opts.help "Main window width")
-    <*> Opts.option (uintArg 120 2160)
+    <*> Opts.option (uintArg 90 2160)
         (Opts.long "height"
         <> Opts.short 'h'
-        <> Opts.value 768
+        <> Opts.value 720
         <> Opts.metavar "<main-window-height>"
         <> Opts.help "Main window height"
         )

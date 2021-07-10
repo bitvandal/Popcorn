@@ -13,8 +13,8 @@ import Data.Word (Word32)
 
 import Popcorn.Common.Control.Monad.Extra (findM)
 import Popcorn.Engine.Managed.Extra (bracketManaged)
-import Popcorn.Engine.Platform.GLFW.Window (Window(..))
-import Popcorn.Engine.Renderer.Vulkan.Internal.Surface (Surface(..), querySurfaceInfo)
+import Popcorn.Engine.Platform.GLFW.Internal.Window (Window(..))
+import Popcorn.Engine.Renderer.Vulkan.Internal.Surface (Surface(..))
 import Popcorn.Engine.Renderer.Vulkan.PhysicalDevice (VulkanDevice(..))
 import Popcorn.Engine.Renderer.Vulkan.Platform.GLFW
     ( createVulkanSurface
@@ -31,25 +31,19 @@ withVulkanSurface
     :: MonadManaged m
     => Window
     -> Vk.Instance
-    -> Vk.PhysicalDevice
     -> m Surface
-withVulkanSurface window inst physicalDevice = bracketManaged
-    (createSurface window inst physicalDevice)
+withVulkanSurface window inst = bracketManaged
+    (createSurface window inst)
     (destroySurface inst)
 
 -- Create a Vulkan WSI surface and gets its properties 
 createSurface
     :: Window
     -> Vk.Instance
-    -> Vk.PhysicalDevice
     -> IO Surface
-createSurface window inst physicalDevice = do
+createSurface window inst = do
     surface <- createVulkanSurface window inst
-    surfaceInfo <- querySurfaceInfo physicalDevice surface
-    pure (Surface
-        { surfaceHandle = surface
-        , surfaceInfo = surfaceInfo
-        })
+    pure (Surface { surfaceHandle = surface })
 
 -- Destroy a Vulkan WSI Surface
 destroySurface :: Vk.Instance -> Surface -> IO ()

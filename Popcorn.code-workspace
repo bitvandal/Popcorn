@@ -15,7 +15,7 @@
 		"editor.detectIndentation": false,
         "editor.tabSize": 4,
 		// haskell lsp
-		"haskell.hlintOn": true,
+		"haskell.plugin.hlint.globalOn": true,
 		"haskell.formattingProvider": "none",
 		// git lens
 		"gitlens.codeLens.enabled": false,

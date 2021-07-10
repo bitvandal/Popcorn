@@ -34,6 +34,7 @@ library
     Popcorn.Engine.Platform.GLFW.Utils
     Popcorn.Engine.Platform.GLFW.Vulkan
     Popcorn.Engine.Platform.GLFW.Window
+    Popcorn.Engine.Renderer.Renderer
     Popcorn.Engine.Renderer.VulkanRenderer
     Popcorn.Engine.Renderer.Vulkan.CommandBuffer
     Popcorn.Engine.Renderer.Vulkan.Framebuffer
@@ -47,12 +48,13 @@ library
     Popcorn.Engine.Renderer.Vulkan.Shader
     Popcorn.Engine.Renderer.Vulkan.Surface
     Popcorn.Engine.Renderer.Vulkan.Swapchain
-    Popcorn.Engine.Renderer.Vulkan.Sychronization
+    Popcorn.Engine.Renderer.Vulkan.Synchronization
     Popcorn.Engine.Renderer.Vulkan.Utils
     Popcorn.Engine.Settings
 
   other-modules:
     Paths_Engine
+    Popcorn.Engine.Platform.GLFW.Internal.Window
     Popcorn.Engine.Renderer.Vulkan.Internal.Surface
     Popcorn.Engine.Renderer.Vulkan.Internal.Vulkan
 

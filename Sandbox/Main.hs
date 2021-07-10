@@ -1,13 +1,16 @@
 module Main (main) where
 
 import Control.Exception (catch)
-import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Managed (runManaged)
 import Paths_Sandbox (version)
 
 import Popcorn.Common.Log.Logger (clientLog)
 import Popcorn.Engine.Application (Application(..), CliArgs(..), parseArgs)
-import Popcorn.Engine.Settings (Settings(..), WindowMode(..), defaultSettings)
+import Popcorn.Engine.Settings
+    ( Settings(..)
+    , WindowMode(..)
+    , defaultSettings
+    )
 
 import qualified Popcorn.Engine.Engine as Engine
 import qualified Popcorn.Engine.Exception as Engine
@@ -38,9 +41,9 @@ start = do
         window <- Platform.withWindow app settings
         engine <- Engine.withEngineInteractive app window settings
 
-        -- engine <- Engine.withEngineRenderStatic app
+        -- engine <- Engine.withEngineRenderStatic app settings
 
-        liftIO $ Engine.run engine
+        Engine.run engine
 
     clientLog "Popcorn Sandbox has ended succesfully :)"
 

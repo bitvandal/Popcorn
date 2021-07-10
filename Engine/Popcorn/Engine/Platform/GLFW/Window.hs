@@ -1,7 +1,7 @@
 -- | GLFW platform Window supporting code
 module Popcorn.Engine.Platform.GLFW.Window
     ( -- * Types
-      Window(..)
+      WindowStatus(..)
 
       -- * Initialization
     , withWindow
@@ -11,27 +11,21 @@ module Popcorn.Engine.Platform.GLFW.Window
     ) where
 
 import Control.Exception (bracket, throwIO)
-import Control.Monad (forever, when)
 import Control.Monad.Managed (Managed, managed)
-import System.Exit (exitSuccess)
 
 import Popcorn.Common.Log.Logger (platformLog)
 import Popcorn.Engine.Application (Application(..))
 import Popcorn.Engine.Exception (EngineException(EngineException))
+import Popcorn.Engine.Platform.GLFW.Internal.Window (Window(..))
 import Popcorn.Engine.Platform.GLFW.Utils
     ( glfwLastErrorFriendlyDesc
     , glfwLastErrorFriendlyDescIfAny
     )
+import Popcorn.Engine.Renderer.Renderer (FrameStatus(..))
+import Popcorn.Engine.Settings (Settings(..), WindowMode(..))
 
 import qualified Data.Text as T
 import qualified Graphics.UI.GLFW as GLFW
-
-import Popcorn.Engine.Settings (Settings(..), WindowMode(..))
-
--- | The GLFW Platform window
-newtype Window = Window
-    { windowHandle :: GLFW.Window
-    }
 
 -- | Returns the GLFW Platform Window
 withWindow :: Application -> Settings -> Managed Window
@@ -58,17 +52,28 @@ createWindow Application{..} settings = do
 destroyWindow :: Window -> IO ()
 destroyWindow Window{..} = GLFW.destroyWindow windowHandle
 
--- | Platform run loop
-eventsLoop :: Window -> IO () -> IO ()
+-- | Platform window status
+data WindowStatus
+    = WindowStatusShouldClose   -- ^ The user requested closing the window
+    | WindowStatusStateChanged  -- ^ The Window state has changed and requires some action
+    deriving stock (Eq, Show)
+
+-- | Platform run loop. Ends when there is a change to the platform window state
+eventsLoop
+    :: Window           -- ^ Platform Window
+    -> IO FrameStatus   -- ^ Rendering Callback
+    -> IO WindowStatus  -- ^ Returns the current WindowStatus that caused the loop to end
 eventsLoop window frame = do
-    forever $ do
-        frame
+    frame >>= \case
+        FrameStatusOK -> do
+            GLFW.pollEvents
 
-        GLFW.pollEvents
+            glfwLastErrorFriendlyDescIfAny >>= \case
+                Left err -> platformLog ("Error while polling events. " <> err)
+                Right _  -> pure ()
 
-        glfwLastErrorFriendlyDescIfAny >>= \case
-            Left err -> platformLog ("Error while polling events. " <> err)
-            Right _  -> pure ()
+            GLFW.windowShouldClose (windowHandle window) >>= \case
+                True  -> pure WindowStatusShouldClose
+                False -> eventsLoop window frame
 
-        shouldClose <- GLFW.windowShouldClose (windowHandle window)
-        when shouldClose exitSuccess
+        FrameStatusRenderContextInvalid -> pure WindowStatusStateChanged

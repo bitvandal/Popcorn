@@ -2,11 +2,8 @@
 
 -- | Vulkan Swapchain extension
 module Popcorn.Engine.Renderer.Vulkan.Swapchain
-    ( -- * Data types
-      Swapchain(..)
-
-      -- * Swapchain creation/destruction
-    , withSwapchain
+    ( -- * Swapchain creation/destruction
+      withSwapchain
 
       -- * Presentation
     , acquireSwapchainImage
@@ -16,8 +13,33 @@ module Popcorn.Engine.Renderer.Vulkan.Swapchain
 import Control.Exception (throwIO)
 import Control.Monad (when)
 import Control.Monad.Managed (MonadManaged)
+import Control.Monad.Trans.Except (ExceptT(ExceptT), runExceptT)
 import Data.Bits (Bits((.&.), (.|.), zeroBits))
 import Data.Word (Word32)
+
+import Popcorn.Common.Log.Logger (engineLog)
+import Popcorn.Common.Utils (maybeToEither)
+import Popcorn.Engine.Exception (EngineException(EngineException))
+import Popcorn.Engine.Managed.Extra (bracketManaged)
+import Popcorn.Engine.Renderer.Vulkan.CommandBuffer (resetCommandPool)
+import Popcorn.Engine.Renderer.Vulkan.Image (Image(Image), canCreateImage, withImageView)
+import Popcorn.Engine.Renderer.Vulkan.Internal.Surface
+    ( Surface(..)
+    , SurfaceInfo(..)
+    , surfaceHandle
+    )
+import Popcorn.Engine.Renderer.Vulkan.Internal.Vulkan
+    ( VulkanRendererInteractive(..)
+    , VulkanSwapchain(..)
+    , VulkanRenderContext(..)
+    , rcRenderer
+    )
+import Popcorn.Engine.Renderer.Vulkan.PhysicalDevice (QueueFamily(..), VulkanDevice(..))
+import Popcorn.Engine.Renderer.Vulkan.Synchronization
+    ( unsignalSemaphoreSlow
+    , waitDeviceIdle
+    )
+import Popcorn.Engine.Settings (Settings(..), VerticalSyncMode(..))
 
 import qualified Data.Text as T
 import qualified Data.Vector as V
@@ -26,45 +48,20 @@ import qualified Vulkan.Extensions.VK_KHR_surface as Vk
 import qualified Vulkan.Extensions.VK_KHR_swapchain as Vk
 import qualified Vulkan.Zero as Vk
 
-import Popcorn.Common.Log.Logger (engineLog)
-import Popcorn.Common.Utils (maybeToEither)
-import Popcorn.Engine.Exception (EngineException(EngineException))
-import Popcorn.Engine.Managed.Extra (bracketManaged)
-import Popcorn.Engine.Renderer.Vulkan.Image
-    ( Image(Image)
-    , canCreateImage
-    , withImageView
-    )
-import Popcorn.Engine.Renderer.Vulkan.Internal.Surface (Surface(..), SurfaceInfo(..))
-import Popcorn.Engine.Renderer.Vulkan.PhysicalDevice
-    ( QueueFamily
-    , VulkanDevice
-    , queueFamilyIndex
-    )
-import Popcorn.Engine.Settings (Settings(..), VerticalSyncMode(..))
-import Control.Monad.Trans.Except (ExceptT(ExceptT), runExceptT)
-
--- | Vulkan Swapchain and associated data
-data Swapchain = Swapchain
-    { swapchainHandle :: Vk.SwapchainKHR
-    , swapchainImage :: Image
-    , swapchainImageFormat :: Vk.Format
-    , swapchainImageView :: Maybe Vk.ImageView
-    }
-
 -- | Manages a Swapchain
 withSwapchain
     :: MonadManaged m
     => VulkanDevice
     -> Vk.Device
     -> Surface
+    -> SurfaceInfo
     -> Settings
     -> QueueFamily
     -> QueueFamily
-    -> m Swapchain
-withSwapchain vd device surface settings graphicsQueue presentQueue = do
+    -> m VulkanSwapchain
+withSwapchain vd device surface surfaceInfo settings graphicsQueue presentQueue = do
     swapchain <- bracketManaged
-        (createSwapchain vd device surface settings graphicsQueue presentQueue)
+        (createSwapchain vd device surface surfaceInfo settings graphicsQueue presentQueue)
         (destroySwapchain device)
 
     imageView <- withImageView device (swapchainImage swapchain)
@@ -75,18 +72,19 @@ createSwapchain
     :: VulkanDevice
     -> Vk.Device
     -> Surface
+    -> SurfaceInfo
     -> Settings
     -> QueueFamily
     -> QueueFamily
-    -> IO Swapchain
-createSwapchain vd device surface settings graphicsQueue presentQueue = do
-    canCreateSwapchain vd (surfaceInfo surface) >>= \case
+    -> IO VulkanSwapchain
+createSwapchain vd device surface surfaceInfo settings graphicsQueue presentQueue = do
+    canCreateSwapchain vd surfaceInfo >>= \case
         Left err -> throwIO
             (EngineException ("[Vulkan] Cannot create swapchain. " <> err))
         Right _ -> pure ()
 
-    swapchainHandle <- Vk.createSwapchainKHR device
-        (mkSwapchainCreateInfoKHR surface settings graphicsQueue presentQueue) Nothing
+    swapchainHandle <- Vk.createSwapchainKHR device (mkSwapchainCreateInfoKHR surface
+        surfaceInfo settings graphicsQueue presentQueue) Nothing
 
     (vkResult, images) <- Vk.getSwapchainImagesKHR device swapchainHandle
 
@@ -104,24 +102,25 @@ createSwapchain vd device surface settings graphicsQueue presentQueue = do
 
     engineLog ("Vulkan Swapchain created with " <> T.pack (show (V.length images)) <> " images")
 
-    return Swapchain{..}
+    return VulkanSwapchain{..}
 
-destroySwapchain :: Vk.Device -> Swapchain -> IO ()
-destroySwapchain device Swapchain{..} =
+destroySwapchain :: Vk.Device -> VulkanSwapchain -> IO ()
+destroySwapchain device VulkanSwapchain{..} =
     Vk.destroySwapchainKHR device swapchainHandle Nothing
 
 mkSwapchainCreateInfoKHR
     :: Surface
+    -> SurfaceInfo
     -> Settings
     -> QueueFamily
     -> QueueFamily
     -> Vk.SwapchainCreateInfoKHR '[]
-mkSwapchainCreateInfoKHR surface settings graphicsQueue presentQueue = Vk.zero
+mkSwapchainCreateInfoKHR surface surfaceInfo settings graphicsQueue presentQueue = Vk.zero
     { Vk.surface = surfaceHandle surface
     , Vk.minImageCount = 1
     , Vk.imageFormat = imageFormat
     , Vk.imageColorSpace = imageColorSpace
-    , Vk.imageExtent = swapchainExtent (surfaceInfo surface)
+    , Vk.imageExtent = swapchainExtent surfaceInfo
     , Vk.imageArrayLayers = 1
     , Vk.imageUsage = swapchainImageUsage
     , Vk.imageSharingMode = sharingMode
@@ -133,7 +132,7 @@ mkSwapchainCreateInfoKHR surface settings graphicsQueue presentQueue = Vk.zero
     , Vk.oldSwapchain = Vk.NULL_HANDLE
     }
   where
-    surfaceCapabilities = surfaceInfoCapabilities (surfaceInfo surface)
+    surfaceCapabilities = surfaceInfoCapabilities surfaceInfo
     supportedTransforms = Vk.supportedTransforms surfaceCapabilities
     transform =
         if supportedTransforms .&. Vk.SURFACE_TRANSFORM_IDENTITY_BIT_KHR /= zeroBits
@@ -215,30 +214,52 @@ surfaceSupportsCompositeAlpha info =
   where
     supportedCompositeAlpha = Vk.supportedCompositeAlpha (surfaceInfoCapabilities info)
 
--- | Acquire a Swapchain image for presentation and return its index. Semaphore should be
--- be signaled before the image can be used.
-acquireSwapchainImage :: Vk.Device -> Swapchain -> Vk.Semaphore -> IO Word32
-acquireSwapchainImage device swapchain semaphore = do
+-- | Acquires a Swapchain image for presentation and return its index.
+--
+-- Semaphore should be signaled before the image can be used. In case Vk_SUBOPTIMAL_KHR
+-- status is received, this function will unsignal the 'Image Ready' semaphore in the
+-- renderer.
+acquireSwapchainImage
+    :: VulkanRenderContext          -- ^ The Vulkan Render Context
+    -> IO (Either Vk.Result Word32) -- ^ Returns the acquired image index, or in case
+                                    -- of partial success, returns the specific vkResult
+acquireSwapchainImage VulkanRenderContext{..} = do
     let timeout = maxBound
+        VulkanRendererInteractive{..} = rcRenderer
 
-    (vkResult, imageIndex) <- Vk.acquireNextImageKHR device (swapchainHandle swapchain)
-        timeout semaphore Vk.NULL_HANDLE
+    (vkResult, imageIndex) <- Vk.acquireNextImageKHR rLogicalDevice
+        (swapchainHandle rcSwapchain) timeout rImageReadySemaphore Vk.NULL_HANDLE
 
-    when (vkResult /= Vk.SUCCESS && vkResult /= Vk.SUBOPTIMAL_KHR) $ do
-        throwIO $ EngineException (T.pack ("Acquire image failed: " <> show vkResult))
-
-    pure imageIndex
+    case vkResult of
+        Vk.SUCCESS -> pure (Right imageIndex)
+        Vk.SUBOPTIMAL_KHR -> do
+            engineLog ("Acquire image partial success: " <> T.pack (show vkResult))
+            unsignalSemaphoreSlow VulkanRendererInteractive{..} rImageReadySemaphore
+            pure (Left vkResult)
+        _ -> throwIO $ EngineException (T.pack ("Acquire image error: " <> show vkResult))
 
 -- | Queues an acquired image for presentation.
-queueImageForPresentation :: Vk.Queue -> Swapchain -> Word32 -> Vk.Semaphore -> IO () 
-queueImageForPresentation queueHandle swapchain imageIndex semaphore = do
-    vkResult <- Vk.queuePresentKHR queueHandle
-        (mkPresentInfoKHR swapchain imageIndex semaphore)
+queueImageForPresentation
+    :: VulkanRenderContext          -- ^ The Vulkan Render Context
+    -> Word32                       -- ^ Index of the swapchain image to queue for present
+    -> IO (Either Vk.Result ())     -- ^ In case of partial success, returns the specific
+                                    -- vkResult
+queueImageForPresentation VulkanRenderContext{..} imageIndex = do
+    let VulkanRendererInteractive{..} = rcRenderer
 
-    when (vkResult /= Vk.SUCCESS && vkResult /= Vk.SUBOPTIMAL_KHR) $ do
-        throwIO $ EngineException (T.pack ("Queue present failed: " <> show vkResult))
+    vkResult <- Vk.queuePresentKHR (queueFamilyHandle rPresentQueue)
+        (mkPresentInfoKHR rcSwapchain imageIndex rCommandsExecutedSemaphore)
 
-mkPresentInfoKHR :: Swapchain -> Word32 -> Vk.Semaphore -> Vk.PresentInfoKHR '[] 
+    case vkResult of
+        Vk.SUCCESS -> pure (Right ())
+        Vk.SUBOPTIMAL_KHR -> do
+            engineLog ("Queue present partial success: " <> T.pack (show vkResult))
+            waitDeviceIdle rLogicalDevice
+            resetCommandPool rLogicalDevice rCommandPool
+            pure (Left vkResult)
+        _ -> throwIO $ EngineException (T.pack ("Queue present error: " <> show vkResult))
+
+mkPresentInfoKHR :: VulkanSwapchain -> Word32 -> Vk.Semaphore -> Vk.PresentInfoKHR '[] 
 mkPresentInfoKHR swapchain imageIndex semaphore = Vk.zero
     { Vk.waitSemaphores = [semaphore]
     , Vk.swapchains = [swapchainHandle swapchain]

@@ -84,7 +84,7 @@ mkRenderPassCreateInfo colorAttachmentFormat clearScreen = Vk.zero
         , Vk.dependencyFlags = Vk.zero
         }
 
--- Make an VkAttachmentDescription for a color attachment. clearScreen boolean flag
+-- Makes an VkAttachmentDescription for a color attachment. clearScreen boolean flag
 -- indicates whether the attachment first will be cleared.
 mkColorAttachmentDescription :: Vk.Format -> Bool -> Vk.AttachmentDescription
 mkColorAttachmentDescription format clearScreen = Vk.zero
@@ -101,7 +101,7 @@ mkColorAttachmentDescription format clearScreen = Vk.zero
     , Vk.finalLayout = Vk.IMAGE_LAYOUT_PRESENT_SRC_KHR
     }
 
--- | Wrap an IO action between vkCmdBeginRenderPass and vkCmdEndRenderPass calls
+-- | Wraps an IO action between vkCmdBeginRenderPass and vkCmdEndRenderPass calls
 useRenderPass
     :: Vk.RenderPass
     -> Vk.CommandBuffer

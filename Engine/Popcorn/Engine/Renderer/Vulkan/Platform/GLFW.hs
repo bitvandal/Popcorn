@@ -16,8 +16,8 @@ import Data.Word (Word32)
 
 import Popcorn.Common.Log.Logger (engineLog)
 import Popcorn.Engine.Exception (EngineException(EngineException))
+import Popcorn.Engine.Platform.GLFW.Internal.Window (Window(..))
 import Popcorn.Engine.Platform.GLFW.Utils (glfwLastErrorFriendlyDesc)
-import Popcorn.Engine.Platform.GLFW.Window (Window(..))
 
 import qualified Data.ByteString as BS
 import qualified Data.Text as T

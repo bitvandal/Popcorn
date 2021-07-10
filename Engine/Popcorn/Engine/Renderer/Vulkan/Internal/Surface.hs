@@ -17,9 +17,8 @@ import qualified Vulkan.Core10 as Vk
 import qualified Vulkan.Extensions.VK_KHR_surface as Vk
 
 -- | WSI Vulkan surface
-data Surface = Surface
+newtype Surface = Surface
     { surfaceHandle :: Vk.SurfaceKHR
-    , surfaceInfo :: SurfaceInfo
     }
 
 -- | Vulkan surface capabilities, supported formats and present modes
